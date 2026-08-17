@@ -18,13 +18,14 @@ export default function FixedBillsScreen() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("");
   const [dueDay, setDueDay] = useState("1");
   const [categoryId, setCategoryId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(() => {
-    Promise.all([api.fixedExpenses.list(currentMonth()), api.categories.list()])
+    Promise.all([api.fixedExpenses.list(currentMonth()), api.categories.list("fixed")])
       .then(([b, c]) => {
         setBills(b);
         setCategories(c);
@@ -61,8 +62,9 @@ export default function FixedBillsScreen() {
     }
     setSaving(true);
     try {
-      await api.fixedExpenses.create({ name: name.trim(), category_id: categoryId, amount: numAmount, due_day: numDueDay });
+      await api.fixedExpenses.create({ name: name.trim(), description: description.trim(), category_id: categoryId, amount: numAmount, due_day: numDueDay });
       setName("");
+      setDescription("");
       setAmount("");
       setDueDay("1");
       load();
@@ -113,6 +115,18 @@ export default function FixedBillsScreen() {
           placeholderTextColor={t.inkMuted}
           style={[styles.input, { borderColor: t.rule, color: t.ink }]}
         />
+        <TextInput
+          value={description}
+          onChangeText={setDescription}
+          placeholder="Description (optional)"
+          placeholderTextColor={t.inkMuted}
+          style={[styles.input, { borderColor: t.rule, color: t.ink, marginTop: 10 }]}
+        />
+        {categories.length === 0 && (
+          <Text style={{ color: t.inkMuted, fontSize: 12, marginTop: 10 }}>
+            No "fixed" type categories yet — add one from the Categories screen first.
+          </Text>
+        )}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 10 }}>
           {categories.map((c) => {
             const selected = c.id === categoryId;

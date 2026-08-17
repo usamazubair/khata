@@ -39,8 +39,6 @@ export default function HomeScreen({ navigation }: any) {
     setRefreshing(false);
   }
 
-  const budgetPct = data && data.budget_total > 0 ? Math.round((data.total_spent / data.budget_total) * 100) : 0;
-  const budgetColor = budgetPct >= 100 ? t.status.critical : budgetPct >= 85 ? t.status.warning : t.accent2;
   const maxCat = data?.by_category.length ? Math.max(...data.by_category.map((c) => c.total)) : 1;
 
   return (
@@ -61,21 +59,22 @@ export default function HomeScreen({ navigation }: any) {
         <>
           <View style={[styles.card, { backgroundColor: t.page2 }]}>
             <Text style={[styles.label, { color: t.inkMuted }]}>Spent this month</Text>
-            <Text style={[styles.hero, { color: t.ink, fontFamily: fonts.mono }]}>{money(data.total_spent)}</Text>
-            {data.budget_total > 0 ? (
-              <>
-                <View style={{ marginTop: 10 }}>
-                  <ProgressBar pct={budgetPct} color={budgetColor} />
-                </View>
-                <Text style={[styles.caption, { color: t.inkMuted }]}>
-                  {data.total_spent <= data.budget_total
-                    ? `${money(data.budget_total - data.total_spent)} left of ${money(data.budget_total)}`
-                    : `${money(data.total_spent - data.budget_total)} over the ${money(data.budget_total)} budget`}
-                </Text>
-              </>
-            ) : (
-              <Text style={[styles.caption, { color: t.inkMuted }]}>No budget set for this month.</Text>
-            )}
+            <Text style={[styles.hero, { color: t.ink, fontFamily: fonts.mono }]}>{money(data.total_expense)}</Text>
+          </View>
+
+          <View style={styles.statRow}>
+            <View style={[styles.statTile, { backgroundColor: t.page2 }]}>
+              <Text style={[styles.label, { color: t.inkMuted }]}>Total saved</Text>
+              <Text style={[styles.statValue, { color: t.status.good, fontFamily: fonts.mono }]}>{money(data.total_saved)}</Text>
+            </View>
+            <View style={[styles.statTile, { backgroundColor: t.page2 }]}>
+              <Text style={[styles.label, { color: t.inkMuted }]}>Categories</Text>
+              <Text style={[styles.statValue, { color: t.ink, fontFamily: fonts.mono }]}>{data.total_categories}</Text>
+            </View>
+            <View style={[styles.statTile, { backgroundColor: t.page2 }]}>
+              <Text style={[styles.label, { color: t.inkMuted }]}>Transactions</Text>
+              <Text style={[styles.statValue, { color: t.ink, fontFamily: fonts.mono }]}>{data.total_transactions}</Text>
+            </View>
           </View>
 
           <Text style={[styles.sectionLabel, { color: t.inkMuted, borderColor: t.rule }]}>By category</Text>
@@ -122,6 +121,9 @@ const styles = StyleSheet.create({
   label: { fontSize: 10, textTransform: "uppercase", letterSpacing: 0.6 },
   hero: { fontSize: 32, fontWeight: "600", marginTop: 4 },
   caption: { fontSize: 12, marginTop: 8 },
+  statRow: { flexDirection: "row", gap: 10, marginTop: 10 },
+  statTile: { flex: 1, borderRadius: 12, padding: 12 },
+  statValue: { fontSize: 17, fontWeight: "600", marginTop: 4 },
   sectionLabel: { fontSize: 10, textTransform: "uppercase", letterSpacing: 0.6, marginTop: 22, marginBottom: 8 },
   barRow: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 6 },
   barName: { width: 90, fontSize: 12 },

@@ -5,7 +5,7 @@ const { asyncHandler } = require("../asyncHandler");
 const router = express.Router();
 
 const SELECT = `
-  SELECT t.id, t.category_id, c.name AS category_name, c.color AS category_color,
+  SELECT t.id, t.category_id, c.name AS category_name, c.color AS category_color, c.type AS category_type,
          t.description, t.amount, t.is_paid, t.occurred_on, t.created_at, t.fixed_expense_id
   FROM transactions t
   JOIN categories c ON c.id = t.category_id

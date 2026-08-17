@@ -22,45 +22,61 @@
   </div>
 
   <main id="app" hidden>
-    <header class="top">
-      <div>
-        <p class="eyebrow">Khata</p>
-        <h1>Dashboard</h1>
-      </div>
-      <div class="month-nav">
-        <button id="prev-month" aria-label="Previous month">‹</button>
-        <span id="month-label" class="mono">—</span>
-        <button id="next-month" aria-label="Next month">›</button>
-      </div>
-    </header>
+    <nav id="navbar" class="navbar"></nav>
+    <div class="page-wrap">
 
-    <section class="hero-row">
-      <div class="card hero">
-        <div class="label-sm">Spent this month</div>
-        <div id="total-spent" class="amount-hero">Rs 0</div>
-        <div class="progress-track"><div id="budget-fill" class="progress-fill"></div></div>
-        <div id="budget-caption" class="meta"></div>
-      </div>
-      <div class="card">
-        <div class="label-sm">By category</div>
-        <div id="category-bars" class="bars"></div>
-      </div>
-    </section>
+      <header class="top">
+        <div>
+          <p class="eyebrow">Khata</p>
+          <h1>Dashboard</h1>
+        </div>
+        <div class="month-nav">
+          <button id="prev-month" aria-label="Previous month">‹</button>
+          <span id="month-label" class="mono">—</span>
+          <button id="next-month" aria-label="Next month">›</button>
+        </div>
+      </header>
 
-    <section class="two-col">
-      <div class="card">
-        <div class="label-sm" style="margin-bottom:10px;">Recent transactions</div>
-        <div id="recent-list"></div>
-      </div>
-      <div class="card">
-        <div class="label-sm" style="margin-bottom:10px;">Archives</div>
-        <div id="archive-list"></div>
-      </div>
-    </section>
+      <div id="stat-grid" class="stat-grid"></div>
 
-    <p class="footnote">Read-only — add or edit expenses from the Khata phone app.</p>
+      <section class="hero-row">
+        <div class="card hero">
+          <div class="label-sm">Spent this month</div>
+          <div id="total-spent" class="amount-hero">Rs 0</div>
+          <div class="meta">Everything logged this month except savings contributions.</div>
+        </div>
+        <div class="card">
+          <div class="label-sm">Spent by category</div>
+          <div id="category-bars" class="bars"></div>
+        </div>
+      </section>
+
+      <section class="two-col">
+        <div class="card">
+          <div class="label-sm" style="margin-bottom:10px;">Recent transactions</div>
+          <div id="recent-list"></div>
+        </div>
+        <div class="card">
+          <div class="label-sm" style="margin-bottom:10px;">Archives</div>
+          <div id="archive-list"></div>
+        </div>
+      </section>
+
+      <section style="margin-top:18px;">
+        <div class="label-sm" style="margin-bottom:10px;">Budgets — by category, with what's left</div>
+        <div id="budget-list"></div>
+      </section>
+
+      <section style="margin-top:18px;">
+        <div class="label-sm" style="margin-bottom:10px;">Goals — by category, with what's left</div>
+        <div id="goal-list"></div>
+      </section>
+
+      <p class="footnote">Read-only totals — add or edit transactions from the Khata phone app. Manage categories, fixed bills, goals, and budgets from the nav above.</p>
+    </div>
   </main>
 
-<script src="app.js"></script>
+<script src="common.js"></script>
+<script src="dashboard.js"></script>
 </body>
 </html>

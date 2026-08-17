@@ -1,15 +1,22 @@
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { View, Text, TextInput, Pressable, ScrollView, StyleSheet, Switch, Alert, Platform } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useTheme, fonts } from "../theme";
 import { api, ApiNotConfiguredError } from "../api";
-import { Category } from "../types";
+import { Category, CategoryType } from "../types";
 import Dot from "../components/Dot";
 
 function toISODate(d: Date) {
   return d.toISOString().slice(0, 10);
 }
+
+const TYPE_SECTIONS: { type: CategoryType; label: string }[] = [
+  { type: "expense", label: "Expense" },
+  { type: "fixed", label: "Fixed" },
+  { type: "saved", label: "Saved" },
+  { type: "budget", label: "Budget" },
+];
 
 export default function AddScreen({ navigation }: any) {
   const t = useTheme();
@@ -23,6 +30,15 @@ export default function AddScreen({ navigation }: any) {
   const [isPaid, setIsPaid] = useState(true);
   const [saving, setSaving] = useState(false);
 
+  const byType = useMemo(() => {
+    const map = new Map<CategoryType, Category[]>();
+    for (const c of categories) {
+      if (!map.has(c.type)) map.set(c.type, []);
+      map.get(c.type)!.push(c);
+    }
+    return map;
+  }, [categories]);
+
   useFocusEffect(
     useCallback(() => {
       api
@@ -30,7 +46,7 @@ export default function AddScreen({ navigation }: any) {
         .then((cats: Category[]) => {
           setCategories(cats);
           setError(null);
-          setCategoryId((prev) => prev ?? cats[0]?.id ?? null);
+          setCategoryId((prev) => prev ?? cats.find((c) => c.type === "expense")?.id ?? cats[0]?.id ?? null);
         })
         .catch((err) => setError(err instanceof ApiNotConfiguredError ? "Set up your server in More → Settings first." : err.message));
     }, [])
@@ -87,27 +103,39 @@ export default function AddScreen({ navigation }: any) {
           </View>
 
           <Text style={[styles.label, { color: t.inkMuted }]}>Category</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow}>
-            {categories.map((c) => {
-              const selected = c.id === categoryId;
-              return (
-                <Pressable
-                  key={c.id}
-                  onPress={() => setCategoryId(c.id)}
-                  style={[
-                    styles.chip,
-                    {
-                      borderColor: selected ? t.accent : t.rule,
-                      backgroundColor: selected ? t.page : "transparent",
-                    },
-                  ]}
-                >
-                  <Dot color={t.categoryColor(c.color)} size={7} />
-                  <Text style={{ color: t.ink, fontSize: 12, fontWeight: selected ? "600" : "400" }}>{c.name}</Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
+          {TYPE_SECTIONS.map(({ type, label }) => {
+            const cats = byType.get(type) ?? [];
+            return (
+              <View key={type} style={styles.typeSection}>
+                <Text style={[styles.typeLabel, { color: t.inkMuted }]}>{label}</Text>
+                {cats.length === 0 ? (
+                  <Text style={{ color: t.inkMuted, fontSize: 11.5, fontStyle: "italic" }}>No {label.toLowerCase()} categories yet</Text>
+                ) : (
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                    {cats.map((c) => {
+                      const selected = c.id === categoryId;
+                      return (
+                        <Pressable
+                          key={c.id}
+                          onPress={() => setCategoryId(c.id)}
+                          style={[
+                            styles.chip,
+                            {
+                              borderColor: selected ? t.accent : t.rule,
+                              backgroundColor: selected ? t.page : "transparent",
+                            },
+                          ]}
+                        >
+                          <Dot color={t.categoryColor(c.color)} size={7} />
+                          <Text style={{ color: t.ink, fontSize: 12, fontWeight: selected ? "600" : "400" }}>{c.name}</Text>
+                        </Pressable>
+                      );
+                    })}
+                  </ScrollView>
+                )}
+              </View>
+            );
+          })}
 
           <Text style={[styles.label, { color: t.inkMuted }]}>Description</Text>
           <TextInput
@@ -161,7 +189,8 @@ const styles = StyleSheet.create({
   currency: { fontSize: 16, marginBottom: 8 },
   amountInput: { fontSize: 44, fontWeight: "600", borderBottomWidth: 2, minWidth: 140, textAlign: "center", paddingBottom: 4 },
   label: { fontSize: 10, textTransform: "uppercase", letterSpacing: 0.6, marginTop: 16, marginBottom: 8 },
-  chipRow: { flexDirection: "row" },
+  typeSection: { marginBottom: 10 },
+  typeLabel: { fontSize: 11, fontWeight: "600", marginBottom: 6 },
   chip: { flexDirection: "row", alignItems: "center", gap: 6, borderWidth: 1, borderRadius: 20, paddingVertical: 8, paddingHorizontal: 12, marginRight: 8 },
   field: { borderWidth: 1, borderRadius: 10, padding: 12 },
   switchRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 20 },

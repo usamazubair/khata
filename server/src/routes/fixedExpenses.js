@@ -1,14 +1,22 @@
 const express = require("express");
 const { pool } = require("../db");
 const { asyncHandler } = require("../asyncHandler");
+const { uniqueSlug } = require("../slugify");
 
 const router = express.Router();
+
+async function assertCategoryType(category_id, type) {
+  const { rows } = await pool.query("SELECT type FROM categories WHERE id = $1", [category_id]);
+  if (!rows[0]) return `category_id ${category_id} does not exist.`;
+  if (rows[0].type !== type) return `That category is type "${rows[0].type}", not "${type}".`;
+  return null;
+}
 
 // Fixed bills, annotated with whether *this month's* instance has been logged yet.
 router.get("/", asyncHandler(async (req, res) => {
   const month = req.query.month || new Date().toISOString().slice(0, 7);
   const { rows } = await pool.query(
-    `SELECT f.id, f.name, f.amount, f.due_day, f.active,
+    `SELECT f.id, f.name, f.slug, f.description, f.amount, f.due_day, f.active,
             f.category_id, c.name AS category_name, c.color AS category_color,
             t.id AS transaction_id, t.is_paid
      FROM fixed_expenses f
@@ -29,29 +37,40 @@ router.get("/", asyncHandler(async (req, res) => {
 }));
 
 router.post("/", asyncHandler(async (req, res) => {
-  const { name, category_id, amount, due_day, active = true } = req.body;
+  const { name, description = "", category_id, amount, due_day, active = true } = req.body;
   if (!name || !category_id || amount === undefined || !due_day) {
     return res.status(400).json({ error: "name, category_id, amount, and due_day are required." });
   }
+  const typeError = await assertCategoryType(category_id, "fixed");
+  if (typeError) return res.status(400).json({ error: typeError });
+
+  const slug = await uniqueSlug("fixed_expenses", name);
   const { rows } = await pool.query(
-    `INSERT INTO fixed_expenses (name, category_id, amount, due_day, active)
-     VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-    [name, category_id, amount, due_day, active]
+    `INSERT INTO fixed_expenses (name, slug, description, category_id, amount, due_day, active)
+     VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+    [name, slug, description, category_id, amount, due_day, active]
   );
   res.status(201).json(rows[0]);
 }));
 
 router.put("/:id", asyncHandler(async (req, res) => {
-  const { name, category_id, amount, due_day, active } = req.body;
+  const { name, description, category_id, amount, due_day, active } = req.body;
+  if (category_id) {
+    const typeError = await assertCategoryType(category_id, "fixed");
+    if (typeError) return res.status(400).json({ error: typeError });
+  }
+  const slug = name ? await uniqueSlug("fixed_expenses", name, req.params.id) : null;
   const { rows } = await pool.query(
     `UPDATE fixed_expenses SET
        name = COALESCE($1, name),
-       category_id = COALESCE($2, category_id),
-       amount = COALESCE($3, amount),
-       due_day = COALESCE($4, due_day),
-       active = COALESCE($5, active)
-     WHERE id = $6 RETURNING *`,
-    [name, category_id, amount, due_day, active, req.params.id]
+       slug = COALESCE($2, slug),
+       description = COALESCE($3, description),
+       category_id = COALESCE($4, category_id),
+       amount = COALESCE($5, amount),
+       due_day = COALESCE($6, due_day),
+       active = COALESCE($7, active)
+     WHERE id = $8 RETURNING *`,
+    [name, slug, description, category_id, amount, due_day, active, req.params.id]
   );
   if (!rows[0]) return res.status(404).json({ error: "Fixed bill not found." });
   res.json(rows[0]);

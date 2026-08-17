@@ -49,21 +49,25 @@ export default function InsightsScreen() {
           ) : (
             budgets.map((b) => {
               const spent = Number(b.spent);
-              const limit = Number(b.limit_amount);
-              const pct = limit > 0 ? (spent / limit) * 100 : 0;
-              const color = pct >= 100 ? t.status.critical : pct >= 85 ? t.status.warning : t.status.good;
+              const price = Number(b.price);
+              const remaining = Number(b.remaining);
+              const pct = price > 0 ? (spent / price) * 100 : 0;
+              const color = remaining < 0 ? t.status.critical : pct >= 85 ? t.status.warning : t.status.good;
               return (
                 <View key={b.id} style={[styles.card, { backgroundColor: t.page2 }]}>
                   <View style={styles.cardTop}>
-                    <Text style={{ color: t.ink, fontSize: 13 }}>{b.category_name}</Text>
-                    <Text style={{ color: t.ink, fontFamily: fonts.mono, fontSize: 12 }}>{money(spent)} / {money(limit)}</Text>
+                    <Text style={{ color: t.ink, fontSize: 13, fontWeight: "600" }}>{b.name}</Text>
+                    <Text style={{ color: t.ink, fontFamily: fonts.mono, fontSize: 12 }}>{money(spent)} / {money(price)}</Text>
                   </View>
                   <View style={{ marginTop: 8 }}>
                     <ProgressBar pct={pct} color={color} />
                   </View>
-                  <Text style={{ color: t.inkMuted, fontSize: 11, marginTop: 6 }}>
-                    {pct >= 100 ? `Over budget by ${money(spent - limit)}` : `${Math.round(pct)}% used`}
-                  </Text>
+                  <View style={styles.cardTop}>
+                    <Text style={{ color: t.inkMuted, fontSize: 11 }}>{b.category_name}</Text>
+                    <Text style={{ color, fontSize: 11, fontWeight: "600" }}>
+                      {remaining < 0 ? `${money(-remaining)} over` : `${money(remaining)} left`}
+                    </Text>
+                  </View>
                 </View>
               );
             })
@@ -75,24 +79,29 @@ export default function InsightsScreen() {
             <Text style={{ color: t.inkMuted, fontSize: 13 }}>No savings goals yet.</Text>
           ) : (
             goals.map((g) => {
-              const saved = Number(g.saved_amount);
-              const target = Number(g.target_amount);
-              const pct = target > 0 ? (saved / target) * 100 : 0;
+              const saved = Number(g.saved);
+              const price = Number(g.price);
+              const remaining = Number(g.remaining);
+              const pct = price > 0 ? (saved / price) * 100 : 0;
               return (
                 <View key={g.id} style={[styles.card, { backgroundColor: t.page2 }]}>
-                  <Text style={{ color: t.ink, fontSize: 13, fontWeight: "600" }}>{g.name}</Text>
+                  <View style={styles.cardTop}>
+                    <Text style={{ color: t.ink, fontSize: 13, fontWeight: "600" }}>{g.name}</Text>
+                    <Text style={{ color: t.ink, fontFamily: fonts.mono, fontSize: 12 }}>{money(saved)} / {money(price)}</Text>
+                  </View>
                   <View style={{ marginTop: 8 }}>
                     <ProgressBar pct={pct} color={t.accent2} />
                   </View>
                   <View style={styles.cardTop}>
-                    <Text style={{ color: t.ink, fontFamily: fonts.mono, fontSize: 11, fontWeight: "600" }}>{money(saved)} saved</Text>
-                    <Text style={{ color: t.inkMuted, fontFamily: fonts.mono, fontSize: 11 }}>of {money(target)}</Text>
-                  </View>
-                  {g.target_date && (
-                    <Text style={{ color: t.inkMuted, fontSize: 10, marginTop: 4 }}>
-                      Target: {new Date(g.target_date).toLocaleDateString(undefined, { month: "short", year: "numeric" })}
+                    <Text style={{ color: t.inkMuted, fontSize: 11 }}>
+                      {g.target_date
+                        ? `Target: ${new Date(g.target_date).toLocaleDateString(undefined, { month: "short", year: "numeric" })}`
+                        : g.category_name}
                     </Text>
-                  )}
+                    <Text style={{ color: remaining <= 0 ? t.status.good : t.inkMuted, fontSize: 11, fontWeight: "600" }}>
+                      {remaining <= 0 ? "Funded" : `${money(remaining)} left`}
+                    </Text>
+                  </View>
                 </View>
               );
             })

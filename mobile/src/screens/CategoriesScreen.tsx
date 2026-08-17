@@ -8,14 +8,14 @@ import { Category } from "../types";
 import Dot from "../components/Dot";
 
 const SWATCHES = Object.keys(CATEGORY_DARK_STEP);
-const TYPES: Category["type"][] = ["need", "want", "fixed"];
+const TYPES: Category["type"][] = ["expense", "fixed", "saved", "budget"];
 
 export default function CategoriesScreen() {
   const t = useTheme();
   const [categories, setCategories] = useState<Category[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState("");
-  const [type, setType] = useState<Category["type"]>("need");
+  const [type, setType] = useState<Category["type"]>("expense");
   const [color, setColor] = useState(SWATCHES[0]);
   const [saving, setSaving] = useState(false);
 

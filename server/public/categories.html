@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Khata — Categories</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <div id="lock" class="lock">
+    <div class="lock-card">
+      <p class="eyebrow">Khata</p>
+      <h1>Enter password</h1>
+      <p class="lock-sub">This dashboard shows real spending data, so it's locked with the shared password.</p>
+      <form id="lock-form">
+        <input id="lock-input" type="password" placeholder="Password" autocomplete="current-password" autofocus />
+        <button type="submit">Unlock</button>
+      </form>
+      <p id="lock-error" class="lock-error" hidden>That password didn't work. Try again.</p>
+    </div>
+  </div>
+
+  <main id="app" hidden>
+    <nav id="navbar" class="navbar"></nav>
+    <div class="page-wrap">
+
+      <header class="top">
+        <div>
+          <p class="eyebrow">Khata</p>
+          <h1>Categories</h1>
+        </div>
+      </header>
+
+      <div class="crud-layout">
+        <div class="table-wrap">
+          <table class="data">
+            <thead><tr><th>Name</th><th>Slug</th><th>Type</th><th></th></tr></thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+
+        <div class="form-card">
+          <h2 id="form-title">Add category</h2>
+          <p id="form-error" class="form-error" hidden></p>
+          <form id="item-form">
+            <input type="hidden" id="f-id" />
+            <div class="field-row">
+              <label for="f-name">Name</label>
+              <input id="f-name" required placeholder="Groceries" />
+            </div>
+            <div class="field-row">
+              <label>Type</label>
+              <div class="type-picker" id="f-type"></div>
+            </div>
+            <div class="field-row">
+              <label>Color</label>
+              <div class="swatch-row" id="f-color"></div>
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary">Save</button>
+              <button type="button" id="cancel-edit" class="btn btn-ghost" hidden>Cancel edit</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+<script src="common.js"></script>
+<script src="categories.js"></script>
+</body>
+</html>

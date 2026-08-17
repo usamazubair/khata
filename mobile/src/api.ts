@@ -61,7 +61,7 @@ export const api = {
   health: (url: string) => fetch(`${url}/api/health`).then((r) => r.ok),
 
   categories: {
-    list: () => request("/api/categories"),
+    list: (type?: string) => request(`/api/categories${type ? `?type=${type}` : ""}`),
     create: (body: object) => request("/api/categories", { method: "POST", body: JSON.stringify(body) }),
     update: (id: number, body: object) => request(`/api/categories/${id}`, { method: "PUT", body: JSON.stringify(body) }),
     remove: (id: number) => request(`/api/categories/${id}`, { method: "DELETE" }),

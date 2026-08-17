@@ -1,7 +1,10 @@
+export type CategoryType = "expense" | "fixed" | "saved" | "budget";
+
 export type Category = {
   id: number;
   name: string;
-  type: "need" | "want" | "fixed";
+  slug: string;
+  type: CategoryType;
   color: string;
   sort_order: number;
 };
@@ -11,6 +14,7 @@ export type Transaction = {
   category_id: number;
   category_name: string;
   category_color: string;
+  category_type: CategoryType;
   description: string;
   amount: string;
   is_paid: boolean;
@@ -22,6 +26,8 @@ export type Transaction = {
 export type FixedExpense = {
   id: number;
   name: string;
+  slug: string;
+  description: string;
   amount: string;
   due_day: number;
   active: boolean;
@@ -35,27 +41,40 @@ export type FixedExpense = {
 
 export type Budget = {
   id: number;
+  name: string;
+  slug: string;
+  description: string;
+  price: string;
   category_id: number;
   category_name: string;
   category_color: string;
-  month: string;
-  limit_amount: string;
   spent: string;
+  remaining: string;
 };
 
 export type Goal = {
   id: number;
   name: string;
-  target_amount: string;
-  saved_amount: string;
+  slug: string;
+  description: string;
+  price: string;
+  category_id: number;
+  category_name: string;
+  category_color: string;
+  saved: string;
+  remaining: string;
   target_date: string | null;
 };
 
 export type Summary = {
   month: string;
-  total_spent: number;
-  budget_total: number;
+  total_expense: number;
+  total_saved: number;
+  total_categories: number;
+  total_transactions: number;
   by_category: { category_id: number; name: string; color: string; total: number }[];
   recent: Transaction[];
   archives: { month: string; total: number; count: number }[];
+  budgets: Budget[];
+  goals: Goal[];
 };
