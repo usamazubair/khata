@@ -17,19 +17,115 @@
           <p class="eyebrow" id="module-kicker">Module</p>
           <h1 id="module-title">—</h1>
         </div>
+        <div id="section-admin" class="header-actions" hidden>
+          <button id="manage-fields" class="btn btn-ghost">Manage fields</button>
+          <button id="add-section" class="btn btn-ghost">＋ Section</button>
+        </div>
       </header>
 
-      <div class="card" style="text-align:center; padding:44px 24px;">
-        <p style="font-size:34px; margin:0 0 12px;" id="module-icon">📦</p>
-        <p style="margin:0 0 8px; font-weight:600;">No sections yet</p>
-        <p class="meta" style="max-width:46ch; margin:0 auto;">
+      <div id="empty-state" class="card" style="text-align:center; padding:44px 24px;" hidden>
+        <p style="font-size:34px; margin:0 0 12px;" id="empty-icon">📦</p>
+        <p style="margin:0 0 8px; font-weight:600;" id="empty-title">No sections yet</p>
+        <p class="meta" style="max-width:48ch; margin:0 auto;" id="empty-body">
           Sections are the navigation pages inside this module — each one holds a table of records
-          with fields you define. Setting them up is the next thing we're building.
+          with fields you define.
         </p>
+      </div>
+
+      <div id="section-body" hidden>
+        <div class="crud-layout">
+          <div>
+            <div class="toolbar">
+              <input id="search" class="search-input" type="search" placeholder="Search records…" />
+            </div>
+            <div class="table-wrap">
+              <table class="data">
+                <thead><tr id="table-head"></tr></thead>
+                <tbody id="rows"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="form-card">
+            <h2 id="form-title">Add record</h2>
+            <p id="form-error" class="form-error" hidden></p>
+            <p id="no-fields-hint" class="form-hint" hidden>This section has no fields yet. Add some with “Manage fields”.</p>
+            <form id="record-form">
+              <div id="form-fields"></div>
+              <div class="form-actions">
+                <button type="submit" class="btn btn-primary" id="record-save">Save</button>
+                <button type="button" id="cancel-edit" class="btn btn-ghost" hidden>Cancel edit</button>
+              </div>
+            </form>
+          </div>
+        </div>
       </div>
 
     </div>
   </main>
+
+  <!-- add / edit a section -->
+  <div id="section-dialog" class="dialog-backdrop" hidden>
+    <div class="dialog">
+      <h2 id="section-dialog-title">Add section</h2>
+      <p id="section-dialog-error" class="form-error" hidden></p>
+      <form id="section-form">
+        <input type="hidden" id="s-id" />
+        <div class="field-row">
+          <label for="s-name">Section name</label>
+          <input id="s-name" placeholder="Tasks" required />
+        </div>
+        <div class="field-row">
+          <label for="s-icon">Icon (emoji)</label>
+          <input id="s-icon" placeholder="✅" maxlength="4" />
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">Save</button>
+          <button type="button" class="btn btn-ghost" data-close="section-dialog">Cancel</button>
+          <button type="button" id="delete-section" class="btn btn-ghost" style="margin-left:auto;" hidden>Delete</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- manage the current section's fields -->
+  <div id="fields-dialog" class="dialog-backdrop" hidden>
+    <div class="dialog" style="max-width:520px;">
+      <h2>Fields — <span id="fields-dialog-section"></span></h2>
+      <div id="field-list" class="field-list"></div>
+
+      <h3 class="form-subhead">Add a field</h3>
+      <p id="fields-dialog-error" class="form-error" hidden></p>
+      <form id="field-form">
+        <div class="field-grid">
+          <div class="field-row">
+            <label for="f-name">Label</label>
+            <input id="f-name" placeholder="Due date" required />
+          </div>
+          <div class="field-row">
+            <label for="f-type">Type</label>
+            <select id="f-type"></select>
+          </div>
+        </div>
+        <div class="field-row" id="choices-row" hidden>
+          <label for="f-choices">Choices (one per line)</label>
+          <textarea id="f-choices" placeholder="Low&#10;Medium&#10;High"></textarea>
+        </div>
+        <div class="field-row" id="relation-row" hidden>
+          <label for="f-relation">Links to which section?</label>
+          <select id="f-relation"></select>
+        </div>
+        <label class="checkbox-row" style="margin-bottom:14px;">
+          <input type="checkbox" id="f-required" />
+          <span>Required</span>
+        </label>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">Add field</button>
+          <button type="button" class="btn btn-ghost" data-close="fields-dialog">Done</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
 <script src="common.js"></script>
 <script src="module.js"></script>

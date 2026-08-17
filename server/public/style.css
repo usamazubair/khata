@@ -219,3 +219,12 @@ tr.inactive-row { opacity: 0.55; }
 .checkbox-row { display: flex; align-items: center; gap: 9px; font-size: 13px; cursor: pointer; }
 .checkbox-row input { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
 .active-toggle[disabled] { opacity: 0.6; cursor: default; }
+
+/* generic module: field manager + section tabs */
+.header-actions { display: flex; gap: 8px; }
+.nav-links a.dim { opacity: 0.5; }
+.form-subhead { font-family: var(--font-display); font-size: 15px; margin: 20px 0 12px; padding-top: 16px; border-top: 1px solid var(--rule); }
+.field-list { display: flex; flex-direction: column; gap: 6px; max-height: 240px; overflow-y: auto; }
+.field-list-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; background: var(--paper); border-radius: 8px; font-size: 13px; }
+.field-list-name { flex: 1; font-weight: 500; }
+.dialog .field-row textarea { min-height: 70px; }

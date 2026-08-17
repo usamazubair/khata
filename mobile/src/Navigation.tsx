@@ -4,7 +4,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "./theme";
 
 import ModulesScreen from "./screens/ModulesScreen";
-import ModulePlaceholderScreen from "./screens/ModulePlaceholderScreen";
+import SectionsScreen from "./screens/SectionsScreen";
+import RecordsScreen from "./screens/RecordsScreen";
 import HomeScreen from "./screens/HomeScreen";
 import AddScreen from "./screens/AddScreen";
 import TransactionsScreen from "./screens/TransactionsScreen";
@@ -57,9 +58,14 @@ export default function RootNavigator() {
       <Stack.Screen name="Modules" component={ModulesScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Khata" component={KhataTabs} options={{ title: "Khata" }} />
       <Stack.Screen
-        name="ModulePlaceholder"
-        component={ModulePlaceholderScreen}
+        name="Sections"
+        component={SectionsScreen}
         options={({ route }: any) => ({ title: route.params?.name || "Module" })}
+      />
+      <Stack.Screen
+        name="Records"
+        component={RecordsScreen}
+        options={({ route }: any) => ({ title: route.params?.section?.name || "Records" })}
       />
     </Stack.Navigator>
   );

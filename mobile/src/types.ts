@@ -11,6 +11,50 @@ export type Module = {
   active: boolean;
 };
 
+export type FieldType =
+  | "text"
+  | "longtext"
+  | "number"
+  | "money"
+  | "date"
+  | "boolean"
+  | "select"
+  | "color"
+  | "relation";
+
+export type Field = {
+  id: number;
+  section_id: number;
+  name: string;
+  key: string;
+  type: FieldType;
+  required: boolean;
+  options: { choices?: string[]; section_id?: number };
+  sort_order: number;
+};
+
+export type Section = {
+  id: number;
+  module_id: number;
+  name: string;
+  slug: string;
+  icon: string;
+  sort_order: number;
+  active: boolean;
+  fields: Field[];
+};
+
+export type RecordRow = {
+  id: number;
+  section_id: number;
+  data: Record<string, any>;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+  title: string;
+  relations: Record<string, { id: number; label: string }>;
+};
+
 export type Category = {
   id: number;
   name: string;

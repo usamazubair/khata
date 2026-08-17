@@ -7,6 +7,8 @@ const { requireAuth, bootstrapAdmin } = require("./auth");
 const auth = require("./routes/auth");
 const modules = require("./routes/modules");
 const users = require("./routes/users");
+const sections = require("./routes/sections");
+const records = require("./routes/records");
 const categories = require("./routes/categories");
 const transactions = require("./routes/transactions");
 const fixedExpenses = require("./routes/fixedExpenses");
@@ -25,6 +27,10 @@ app.use("/api/auth", auth);
 app.use("/api", requireAuth);
 app.use("/api/modules", modules);
 app.use("/api/users", users);
+// These two mount several paths each (/modules/:id/sections, /sections/:id,
+// /fields/:id, /records/:id), so they sit at the /api root.
+app.use("/api", sections);
+app.use("/api", records);
 app.use("/api/categories", categories);
 app.use("/api/transactions", transactions);
 app.use("/api/fixed-expenses", fixedExpenses);

@@ -127,6 +127,21 @@ export const api = {
     list: () => request(`/api/goals?active=true`),
   },
 
+  // The generic engine: sections describe a module's pages, records are rows.
+  sections: {
+    list: (moduleId: number) => request(`/api/modules/${moduleId}/sections?active=true`),
+  },
+
+  records: {
+    list: (sectionId: number, params: Record<string, string> = {}) =>
+      request(`/api/sections/${sectionId}/records?${new URLSearchParams({ active: "true", ...params }).toString()}`),
+    create: (sectionId: number, data: object) =>
+      request(`/api/sections/${sectionId}/records`, { method: "POST", body: JSON.stringify({ data }) }),
+    update: (id: number, data: object) =>
+      request(`/api/records/${id}`, { method: "PUT", body: JSON.stringify({ data }) }),
+    remove: (id: number) => request(`/api/records/${id}`, { method: "DELETE" }),
+  },
+
   summary: (month: string) => request(`/api/summary?month=${month}`),
 };
 

@@ -8,6 +8,9 @@
 -- "expense" is everyday spending. Goals and budgets don't store their own
 -- progress — it's always derived by summing transactions in their category.
 
+DROP TABLE IF EXISTS records CASCADE;
+DROP TABLE IF EXISTS fields CASCADE;
+DROP TABLE IF EXISTS sections CASCADE;
 DROP TABLE IF EXISTS module_access CASCADE;
 DROP TABLE IF EXISTS modules CASCADE;
 DROP TABLE IF EXISTS users CASCADE;
@@ -54,6 +57,54 @@ CREATE TABLE module_access (
 
 INSERT INTO modules (name, slug, description, icon, kind, sort_order) VALUES
   ('Khata', 'khata', 'Expenses, budgets, goals and fixed bills', '📒', 'system', 1);
+
+-- ── The generic engine ────────────────────────────────────────────────────
+-- A generic module gets sections (its navigation pages), each section defines
+-- fields (the shape of its table and form), and records hold the rows as
+-- JSONB — so adding a module never changes the database structure.
+
+CREATE TABLE sections (
+  id         SERIAL PRIMARY KEY,
+  module_id  INT NOT NULL REFERENCES modules(id) ON DELETE CASCADE,
+  name       TEXT NOT NULL,
+  slug       TEXT NOT NULL,
+  icon       TEXT NOT NULL DEFAULT '📄',
+  sort_order INT NOT NULL DEFAULT 0,
+  active     BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (module_id, slug)
+);
+
+-- options holds the type's extra config:
+--   select   -> {"choices": ["Low", "Medium", "High"]}
+--   relation -> {"section_id": 7}
+CREATE TABLE fields (
+  id          SERIAL PRIMARY KEY,
+  section_id  INT NOT NULL REFERENCES sections(id) ON DELETE CASCADE,
+  name        TEXT NOT NULL,
+  key         TEXT NOT NULL,
+  type        TEXT NOT NULL CHECK (type IN
+                ('text', 'longtext', 'number', 'money', 'date', 'boolean', 'select', 'color', 'relation')),
+  required    BOOLEAN NOT NULL DEFAULT FALSE,
+  options     JSONB NOT NULL DEFAULT '{}'::jsonb,
+  sort_order  INT NOT NULL DEFAULT 0,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (section_id, key)
+);
+
+CREATE TABLE records (
+  id         SERIAL PRIMARY KEY,
+  section_id INT NOT NULL REFERENCES sections(id) ON DELETE CASCADE,
+  data       JSONB NOT NULL DEFAULT '{}'::jsonb,
+  active     BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_sections_module ON sections (module_id);
+CREATE INDEX idx_fields_section ON fields (section_id);
+CREATE INDEX idx_records_section ON records (section_id);
+CREATE INDEX idx_records_data ON records USING GIN (data);
 
 -- ── Khata module tables ───────────────────────────────────────────────────
 

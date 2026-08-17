@@ -37,10 +37,9 @@ export default function ModulesScreen({ navigation }: any) {
   }
 
   function open(m: Module) {
-    // Khata has hand-built screens; generic modules render from their schema
-    // once their sections are set up on the dashboard.
+    // Khata has hand-built screens; generic modules render from their schema.
     if (m.kind === "system" && m.slug === "khata") navigation.navigate("Khata");
-    else navigation.navigate("ModulePlaceholder", { name: m.name, icon: m.icon });
+    else navigation.navigate("Sections", { moduleId: m.id, name: m.name, icon: m.icon });
   }
 
   return (
