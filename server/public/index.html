@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Khata — Dashboard</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <div id="lock" class="lock">
+    <div class="lock-card">
+      <p class="eyebrow">Khata</p>
+      <h1>Enter password</h1>
+      <p class="lock-sub">This dashboard shows real spending data, so it's locked with the shared password.</p>
+      <form id="lock-form">
+        <input id="lock-input" type="password" placeholder="Password" autocomplete="current-password" autofocus />
+        <button type="submit">Unlock</button>
+      </form>
+      <p id="lock-error" class="lock-error" hidden>That password didn't work. Try again.</p>
+    </div>
+  </div>
+
+  <main id="app" hidden>
+    <header class="top">
+      <div>
+        <p class="eyebrow">Khata</p>
+        <h1>Dashboard</h1>
+      </div>
+      <div class="month-nav">
+        <button id="prev-month" aria-label="Previous month">‹</button>
+        <span id="month-label" class="mono">—</span>
+        <button id="next-month" aria-label="Next month">›</button>
+      </div>
+    </header>
+
+    <section class="hero-row">
+      <div class="card hero">
+        <div class="label-sm">Spent this month</div>
+        <div id="total-spent" class="amount-hero">Rs 0</div>
+        <div class="progress-track"><div id="budget-fill" class="progress-fill"></div></div>
+        <div id="budget-caption" class="meta"></div>
+      </div>
+      <div class="card">
+        <div class="label-sm">By category</div>
+        <div id="category-bars" class="bars"></div>
+      </div>
+    </section>
+
+    <section class="two-col">
+      <div class="card">
+        <div class="label-sm" style="margin-bottom:10px;">Recent transactions</div>
+        <div id="recent-list"></div>
+      </div>
+      <div class="card">
+        <div class="label-sm" style="margin-bottom:10px;">Archives</div>
+        <div id="archive-list"></div>
+      </div>
+    </section>
+
+    <p class="footnote">Read-only — add or edit expenses from the Khata phone app.</p>
+  </main>
+
+<script src="app.js"></script>
+</body>
+</html>
