@@ -35,3 +35,11 @@ app.use((err, req, res, next) => {
 
 const port = process.env.PORT || 4000;
 app.listen(port, () => console.log(`Khata API listening on :${port}`));
+
+// Last line of defense: without this, an uncaught rejection anywhere
+// (a route someone forgot to wrap, a library callback, etc.) crashes the
+// whole process — on a single free-tier instance that means every request
+// fails until Render restarts it. Log and keep serving instead.
+process.on("unhandledRejection", (err) => {
+  console.error("Unhandled rejection:", err);
+});

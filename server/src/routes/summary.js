@@ -1,9 +1,10 @@
 const express = require("express");
 const { pool } = require("../db");
+const { asyncHandler } = require("../asyncHandler");
 
 const router = express.Router();
 
-router.get("/", async (req, res) => {
+router.get("/", asyncHandler(async (req, res) => {
   const month = req.query.month || new Date().toISOString().slice(0, 7);
   const monthDate = `${month}-01`;
 
@@ -57,6 +58,6 @@ router.get("/", async (req, res) => {
     recent: recent.rows,
     archives: archives.rows.map((r) => ({ ...r, total: Number(r.total), count: Number(r.count) })),
   });
-});
+}));
 
 module.exports = router;

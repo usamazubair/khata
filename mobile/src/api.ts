@@ -32,6 +32,7 @@ async function request(path: string, options: RequestInit = {}, attempt = 1): Pr
 
   const res = await fetch(`${url}${path}`, {
     ...options,
+    cache: "no-store",
     headers: {
       "Content-Type": "application/json",
       "x-api-key": key,

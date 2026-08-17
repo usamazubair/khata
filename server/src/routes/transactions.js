@@ -1,5 +1,6 @@
 const express = require("express");
 const { pool } = require("../db");
+const { asyncHandler } = require("../asyncHandler");
 
 const router = express.Router();
 
@@ -10,7 +11,7 @@ const SELECT = `
   JOIN categories c ON c.id = t.category_id
 `;
 
-router.get("/", async (req, res) => {
+router.get("/", asyncHandler(async (req, res) => {
   const { month, category_id, paid, limit } = req.query;
   const clauses = [];
   const params = [];
@@ -36,9 +37,9 @@ router.get("/", async (req, res) => {
 
   const { rows } = await pool.query(sql, params);
   res.json(rows);
-});
+}));
 
-router.post("/", async (req, res) => {
+router.post("/", asyncHandler(async (req, res) => {
   const { category_id, description = "", amount, is_paid = true, occurred_on, fixed_expense_id = null } = req.body;
   if (!category_id || amount === undefined) {
     return res.status(400).json({ error: "category_id and amount are required." });
@@ -49,9 +50,9 @@ router.post("/", async (req, res) => {
     [category_id, description, amount, is_paid, occurred_on, fixed_expense_id]
   );
   res.status(201).json(rows[0]);
-});
+}));
 
-router.put("/:id", async (req, res) => {
+router.put("/:id", asyncHandler(async (req, res) => {
   const { category_id, description, amount, is_paid, occurred_on } = req.body;
   const { rows } = await pool.query(
     `UPDATE transactions SET
@@ -65,12 +66,12 @@ router.put("/:id", async (req, res) => {
   );
   if (!rows[0]) return res.status(404).json({ error: "Transaction not found." });
   res.json(rows[0]);
-});
+}));
 
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", asyncHandler(async (req, res) => {
   const { rowCount } = await pool.query("DELETE FROM transactions WHERE id = $1", [req.params.id]);
   if (!rowCount) return res.status(404).json({ error: "Transaction not found." });
   res.status(204).end();
-});
+}));
 
 module.exports = router;

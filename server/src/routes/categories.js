@@ -1,16 +1,17 @@
 const express = require("express");
 const { pool } = require("../db");
+const { asyncHandler } = require("../asyncHandler");
 
 const router = express.Router();
 
-router.get("/", async (req, res) => {
+router.get("/", asyncHandler(async (req, res) => {
   const { rows } = await pool.query(
     "SELECT id, name, type, color, sort_order FROM categories ORDER BY sort_order, name"
   );
   res.json(rows);
-});
+}));
 
-router.post("/", async (req, res) => {
+router.post("/", asyncHandler(async (req, res) => {
   const { name, type, color, sort_order = 0 } = req.body;
   if (!name || !type || !color) {
     return res.status(400).json({ error: "name, type, and color are required." });
@@ -25,9 +26,9 @@ router.post("/", async (req, res) => {
     if (err.code === "23505") return res.status(409).json({ error: "A category with that name already exists." });
     throw err;
   }
-});
+}));
 
-router.put("/:id", async (req, res) => {
+router.put("/:id", asyncHandler(async (req, res) => {
   const { name, type, color, sort_order } = req.body;
   const { rows } = await pool.query(
     `UPDATE categories SET
@@ -40,9 +41,9 @@ router.put("/:id", async (req, res) => {
   );
   if (!rows[0]) return res.status(404).json({ error: "Category not found." });
   res.json(rows[0]);
-});
+}));
 
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", asyncHandler(async (req, res) => {
   try {
     const { rowCount } = await pool.query("DELETE FROM categories WHERE id = $1", [req.params.id]);
     if (!rowCount) return res.status(404).json({ error: "Category not found." });
@@ -53,6 +54,6 @@ router.delete("/:id", async (req, res) => {
     }
     throw err;
   }
-});
+}));
 
 module.exports = router;

@@ -58,7 +58,11 @@ function looksLikeInfraHiccup(res) {
 }
 
 async function api(path, attempt = 1) {
-  const res = await fetch(path, { headers: { "x-api-key": apiKey } });
+  // no-store: these are live data endpoints, not static assets — a cached
+  // 304 has no body and makes res.ok false, which looked like a real
+  // failure and left the page stuck on the lock screen after a correct
+  // password.
+  const res = await fetch(path, { headers: { "x-api-key": apiKey }, cache: "no-store" });
   if (res.status === 401) {
     localStorage.removeItem(STORAGE_KEY);
     apiKey = null;

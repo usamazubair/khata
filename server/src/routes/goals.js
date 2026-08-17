@@ -1,16 +1,17 @@
 const express = require("express");
 const { pool } = require("../db");
+const { asyncHandler } = require("../asyncHandler");
 
 const router = express.Router();
 
-router.get("/", async (req, res) => {
+router.get("/", asyncHandler(async (req, res) => {
   const { rows } = await pool.query(
     "SELECT * FROM goals ORDER BY target_date NULLS LAST, id"
   );
   res.json(rows);
-});
+}));
 
-router.post("/", async (req, res) => {
+router.post("/", asyncHandler(async (req, res) => {
   const { name, target_amount, saved_amount = 0, target_date = null } = req.body;
   if (!name || target_amount === undefined) {
     return res.status(400).json({ error: "name and target_amount are required." });
@@ -21,9 +22,9 @@ router.post("/", async (req, res) => {
     [name, target_amount, saved_amount, target_date]
   );
   res.status(201).json(rows[0]);
-});
+}));
 
-router.put("/:id", async (req, res) => {
+router.put("/:id", asyncHandler(async (req, res) => {
   const { name, target_amount, saved_amount, target_date } = req.body;
   const { rows } = await pool.query(
     `UPDATE goals SET
@@ -36,12 +37,12 @@ router.put("/:id", async (req, res) => {
   );
   if (!rows[0]) return res.status(404).json({ error: "Goal not found." });
   res.json(rows[0]);
-});
+}));
 
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", asyncHandler(async (req, res) => {
   const { rowCount } = await pool.query("DELETE FROM goals WHERE id = $1", [req.params.id]);
   if (!rowCount) return res.status(404).json({ error: "Goal not found." });
   res.status(204).end();
-});
+}));
 
 module.exports = router;

@@ -1,10 +1,11 @@
 const express = require("express");
 const { pool } = require("../db");
+const { asyncHandler } = require("../asyncHandler");
 
 const router = express.Router();
 
 // Fixed bills, annotated with whether *this month's* instance has been logged yet.
-router.get("/", async (req, res) => {
+router.get("/", asyncHandler(async (req, res) => {
   const month = req.query.month || new Date().toISOString().slice(0, 7);
   const { rows } = await pool.query(
     `SELECT f.id, f.name, f.amount, f.due_day, f.active,
@@ -25,9 +26,9 @@ router.get("/", async (req, res) => {
       status: r.transaction_id ? (r.is_paid ? "paid" : "due") : "unlogged",
     }))
   );
-});
+}));
 
-router.post("/", async (req, res) => {
+router.post("/", asyncHandler(async (req, res) => {
   const { name, category_id, amount, due_day, active = true } = req.body;
   if (!name || !category_id || amount === undefined || !due_day) {
     return res.status(400).json({ error: "name, category_id, amount, and due_day are required." });
@@ -38,9 +39,9 @@ router.post("/", async (req, res) => {
     [name, category_id, amount, due_day, active]
   );
   res.status(201).json(rows[0]);
-});
+}));
 
-router.put("/:id", async (req, res) => {
+router.put("/:id", asyncHandler(async (req, res) => {
   const { name, category_id, amount, due_day, active } = req.body;
   const { rows } = await pool.query(
     `UPDATE fixed_expenses SET
@@ -54,16 +55,16 @@ router.put("/:id", async (req, res) => {
   );
   if (!rows[0]) return res.status(404).json({ error: "Fixed bill not found." });
   res.json(rows[0]);
-});
+}));
 
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", asyncHandler(async (req, res) => {
   const { rowCount } = await pool.query("DELETE FROM fixed_expenses WHERE id = $1", [req.params.id]);
   if (!rowCount) return res.status(404).json({ error: "Fixed bill not found." });
   res.status(204).end();
-});
+}));
 
 // Logs this month's occurrence of a fixed bill as an actual transaction.
-router.post("/:id/confirm", async (req, res) => {
+router.post("/:id/confirm", asyncHandler(async (req, res) => {
   const { rows: bills } = await pool.query("SELECT * FROM fixed_expenses WHERE id = $1", [req.params.id]);
   const bill = bills[0];
   if (!bill) return res.status(404).json({ error: "Fixed bill not found." });
@@ -77,6 +78,6 @@ router.post("/:id/confirm", async (req, res) => {
     [bill.category_id, bill.name, bill.amount, is_paid, occurred_on, bill.id]
   );
   res.status(201).json(rows[0]);
-});
+}));
 
 module.exports = router;
