@@ -15,7 +15,18 @@ export async function setServerConfig(url: string, key: string) {
 
 export class ApiNotConfiguredError extends Error {}
 
-async function request(path: string, options: RequestInit = {}) {
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+// Free-tier hosts (e.g. Render) sometimes 404 with a plain-text body for a
+// beat while a sleeping instance wakes up, before routing settles. Our own
+// routes always answer with JSON, so a non-JSON error response is almost
+// certainly that transient state rather than a real app error — worth a
+// couple of quick retries instead of surfacing it to the user.
+function looksLikeInfraHiccup(res: Response) {
+  return !res.headers.get("content-type")?.includes("application/json");
+}
+
+async function request(path: string, options: RequestInit = {}, attempt = 1): Promise<any> {
   const { url, key } = await getServerConfig();
   if (!url || !key) throw new ApiNotConfiguredError("Set the server URL and key in Settings first.");
 
@@ -27,6 +38,11 @@ async function request(path: string, options: RequestInit = {}) {
       ...options.headers,
     },
   });
+
+  if (!res.ok && looksLikeInfraHiccup(res) && attempt < 3) {
+    await sleep(attempt * 1500);
+    return request(path, options, attempt + 1);
+  }
 
   if (!res.ok) {
     let message = `Request failed (${res.status})`;

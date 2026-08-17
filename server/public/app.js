@@ -47,13 +47,27 @@ const lockError = document.getElementById("lock-error");
 let apiKey = localStorage.getItem(STORAGE_KEY);
 let currentMonth = new Date().toISOString().slice(0, 7);
 
-async function api(path) {
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// A sleeping free-tier host can 404 with a plain-text body for a beat while
+// it wakes up, before routing settles. Our own routes always answer with
+// JSON, so treat a non-JSON error as that transient state and retry briefly
+// rather than showing it as a real failure.
+function looksLikeInfraHiccup(res) {
+  return !(res.headers.get("content-type") || "").includes("application/json");
+}
+
+async function api(path, attempt = 1) {
   const res = await fetch(path, { headers: { "x-api-key": apiKey } });
   if (res.status === 401) {
     localStorage.removeItem(STORAGE_KEY);
     apiKey = null;
     showLock(true);
     throw new Error("unauthorized");
+  }
+  if (!res.ok && looksLikeInfraHiccup(res) && attempt < 3) {
+    await sleep(attempt * 1500);
+    return api(path, attempt + 1);
   }
   if (!res.ok) throw new Error(`Request failed: ${res.status}`);
   return res.json();
