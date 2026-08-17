@@ -60,11 +60,11 @@ async function request(path: string, options: RequestInit = {}, attempt = 1): Pr
 export const api = {
   health: (url: string) => fetch(`${url}/api/health`).then((r) => r.ok),
 
+  // Categories, fixed bills, goals, and budgets are managed from the web
+  // dashboard. The app only reads categories (to log transactions against
+  // them) and reads budgets/goals (to show progress on Insights).
   categories: {
     list: (type?: string) => request(`/api/categories${type ? `?type=${type}` : ""}`),
-    create: (body: object) => request("/api/categories", { method: "POST", body: JSON.stringify(body) }),
-    update: (id: number, body: object) => request(`/api/categories/${id}`, { method: "PUT", body: JSON.stringify(body) }),
-    remove: (id: number) => request(`/api/categories/${id}`, { method: "DELETE" }),
   },
 
   transactions: {
@@ -75,25 +75,12 @@ export const api = {
     remove: (id: number) => request(`/api/transactions/${id}`, { method: "DELETE" }),
   },
 
-  fixedExpenses: {
-    list: (month: string) => request(`/api/fixed-expenses?month=${month}`),
-    create: (body: object) => request("/api/fixed-expenses", { method: "POST", body: JSON.stringify(body) }),
-    update: (id: number, body: object) => request(`/api/fixed-expenses/${id}`, { method: "PUT", body: JSON.stringify(body) }),
-    remove: (id: number) => request(`/api/fixed-expenses/${id}`, { method: "DELETE" }),
-    confirm: (id: number) => request(`/api/fixed-expenses/${id}/confirm`, { method: "POST", body: JSON.stringify({}) }),
-  },
-
   budgets: {
     list: (month: string) => request(`/api/budgets?month=${month}`),
-    upsert: (body: object) => request("/api/budgets", { method: "POST", body: JSON.stringify(body) }),
-    remove: (id: number) => request(`/api/budgets/${id}`, { method: "DELETE" }),
   },
 
   goals: {
     list: () => request("/api/goals"),
-    create: (body: object) => request("/api/goals", { method: "POST", body: JSON.stringify(body) }),
-    update: (id: number, body: object) => request(`/api/goals/${id}`, { method: "PUT", body: JSON.stringify(body) }),
-    remove: (id: number) => request(`/api/goals/${id}`, { method: "DELETE" }),
   },
 
   summary: (month: string) => request(`/api/summary?month=${month}`),
