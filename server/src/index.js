@@ -43,6 +43,9 @@ app.use((err, req, res, next) => {
 const port = process.env.PORT || 4000;
 app.listen(port, async () => {
   console.log(`Khata API listening on :${port}`);
+  if (!process.env.JWT_SECRET) {
+    console.warn("JWT_SECRET is not set — nobody will be able to sign in until it is.");
+  }
   try {
     await bootstrapAdmin();
   } catch (err) {

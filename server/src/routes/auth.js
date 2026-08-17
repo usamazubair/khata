@@ -6,6 +6,12 @@ const { verifyPassword, signToken, publicUser, requireAuth, hashPassword } = req
 const router = express.Router();
 
 router.post("/login", asyncHandler(async (req, res) => {
+  // Without this the server can't issue tokens at all — say so plainly rather
+  // than failing with a generic 500 that looks like a wrong password.
+  if (!process.env.JWT_SECRET) {
+    return res.status(503).json({ error: "Server isn't configured yet: JWT_SECRET is missing." });
+  }
+
   const { email, password } = req.body;
   if (!email || !password) return res.status(400).json({ error: "Email and password are required." });
 
