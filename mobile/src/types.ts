@@ -7,6 +7,7 @@ export type Category = {
   type: CategoryType;
   color: string;
   sort_order: number;
+  active: boolean;
 };
 
 export type Transaction = {
@@ -34,6 +35,7 @@ export type Budget = {
   category_color: string;
   spent: string;
   remaining: string;
+  active: boolean;
 };
 
 export type Goal = {
@@ -48,6 +50,7 @@ export type Goal = {
   saved: string;
   remaining: string;
   target_date: string | null;
+  active: boolean;
 };
 
 export type Summary = {

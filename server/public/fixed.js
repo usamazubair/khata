@@ -3,6 +3,7 @@ window.khataNavActive = "fixed.html";
 let bills = [];
 let fixedCategories = [];
 let editingId = null;
+let searchQuery = "";
 
 const rowsEl = document.getElementById("rows");
 const formTitle = document.getElementById("form-title");
@@ -13,28 +14,37 @@ const categorySelect = document.getElementById("f-category");
 const STATUS_LABEL = { paid: "Paid", due: "Due", unlogged: "Not logged" };
 const STATUS_PILL = { paid: "good", due: "warn", unlogged: "" };
 
+document.getElementById("search").addEventListener("input", (e) => {
+  searchQuery = e.target.value.trim().toLowerCase();
+  renderRows();
+});
+
 function renderCategoryOptions() {
   document.getElementById("no-fixed-cat-hint").hidden = fixedCategories.length > 0;
   categorySelect.innerHTML = fixedCategories.map((c) => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
 }
 
 function renderRows() {
-  if (!bills.length) {
-    rowsEl.innerHTML = `<tr><td colspan="6" class="empty">No fixed transactions yet.</td></tr>`;
+  const filtered = bills.filter(
+    (b) => b.name.toLowerCase().includes(searchQuery) || (b.description || "").toLowerCase().includes(searchQuery)
+  );
+  if (!filtered.length) {
+    rowsEl.innerHTML = `<tr><td colspan="7" class="empty">${bills.length ? "No fixed transactions match your search." : "No fixed transactions yet."}</td></tr>`;
     return;
   }
-  rowsEl.innerHTML = bills
+  rowsEl.innerHTML = filtered
     .map(
       (b) => `
-      <tr>
+      <tr class="${b.active ? "" : "inactive-row"}">
         <td>${escapeHtml(b.name)}</td>
         <td><span class="dot" style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${seriesColor(b.category_color)};margin-right:6px;"></span>${escapeHtml(b.category_name)}</td>
         <td>${b.due_day}</td>
         <td class="amt">${money(b.amount)}</td>
         <td><span class="pill ${STATUS_PILL[b.status]}">${STATUS_LABEL[b.status]}</span></td>
+        <td><button class="active-toggle ${b.active ? "is-active" : "is-inactive"}" data-toggle="${b.id}">${b.active ? "Active" : "Inactive"}</button></td>
         <td>
           <div class="row-actions">
-            ${b.status !== "paid" ? `<button class="icon-btn" data-confirm="${b.id}">Log it</button>` : ""}
+            ${b.status !== "paid" && b.active ? `<button class="icon-btn" data-confirm="${b.id}">Log it</button>` : ""}
             <button class="icon-btn" data-edit="${b.id}">Edit</button>
             <button class="icon-btn danger" data-delete="${b.id}">Delete</button>
           </div>
@@ -46,6 +56,18 @@ function renderRows() {
   rowsEl.querySelectorAll("[data-edit]").forEach((btn) => btn.addEventListener("click", () => startEdit(Number(btn.dataset.edit))));
   rowsEl.querySelectorAll("[data-delete]").forEach((btn) => btn.addEventListener("click", () => remove(Number(btn.dataset.delete))));
   rowsEl.querySelectorAll("[data-confirm]").forEach((btn) => btn.addEventListener("click", () => confirmBill(Number(btn.dataset.confirm))));
+  rowsEl.querySelectorAll("[data-toggle]").forEach((btn) => btn.addEventListener("click", () => toggleActive(Number(btn.dataset.toggle))));
+}
+
+async function toggleActive(id) {
+  const b = bills.find((x) => x.id === id);
+  if (!b) return;
+  try {
+    await api(`/api/fixed-expenses/${id}`, { method: "PUT", body: JSON.stringify({ active: !b.active }) });
+    await load();
+  } catch (err) {
+    alert(err.message);
+  }
 }
 
 function startEdit(id) {

@@ -34,11 +34,16 @@
       <p class="form-hint" id="no-fixed-cat-hint" hidden>You don't have any "fixed" type categories yet — <a href="categories.html">add one first</a>.</p>
 
       <div class="crud-layout">
-        <div class="table-wrap">
-          <table class="data">
-            <thead><tr><th>Name</th><th>Category</th><th>Due</th><th>Amount</th><th>Status</th><th></th></tr></thead>
-            <tbody id="rows"></tbody>
-          </table>
+        <div>
+          <div class="toolbar">
+            <input id="search" class="search-input" type="search" placeholder="Search fixed transactions…" />
+          </div>
+          <div class="table-wrap">
+            <table class="data">
+              <thead><tr><th>Name</th><th>Category</th><th>Due</th><th>Amount</th><th>Status</th><th>Active</th><th></th></tr></thead>
+              <tbody id="rows"></tbody>
+            </table>
+          </div>
         </div>
 
         <div class="form-card">

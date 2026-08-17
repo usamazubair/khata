@@ -3,6 +3,7 @@ window.khataNavActive = "goals.html";
 let goals = [];
 let savedCategories = [];
 let editingId = null;
+let searchQuery = "";
 
 const rowsEl = document.getElementById("rows");
 const formTitle = document.getElementById("form-title");
@@ -10,25 +11,32 @@ const formError = document.getElementById("form-error");
 const cancelBtn = document.getElementById("cancel-edit");
 const categorySelect = document.getElementById("f-category");
 
+document.getElementById("search").addEventListener("input", (e) => {
+  searchQuery = e.target.value.trim().toLowerCase();
+  renderRows();
+});
+
 function renderCategoryOptions() {
   document.getElementById("no-saved-cat-hint").hidden = savedCategories.length > 0;
   categorySelect.innerHTML = savedCategories.map((c) => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
 }
 
 function renderRows() {
-  if (!goals.length) {
-    rowsEl.innerHTML = `<tr><td colspan="6" class="empty">No goals yet.</td></tr>`;
+  const filtered = goals.filter((g) => g.name.toLowerCase().includes(searchQuery));
+  if (!filtered.length) {
+    rowsEl.innerHTML = `<tr><td colspan="7" class="empty">${goals.length ? "No goals match your search." : "No goals yet."}</td></tr>`;
     return;
   }
-  rowsEl.innerHTML = goals
+  rowsEl.innerHTML = filtered
     .map(
       (g) => `
-      <tr>
+      <tr class="${g.active ? "" : "inactive-row"}">
         <td>${escapeHtml(g.name)}</td>
         <td><span class="dot" style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${seriesColor(g.category_color)};margin-right:6px;"></span>${escapeHtml(g.category_name)}</td>
         <td class="amt">${money(g.saved)} / ${money(g.price)}</td>
         <td><span class="pill ${g.remaining <= 0 ? "good" : ""}">${g.remaining <= 0 ? "Funded" : money(g.remaining)}</span></td>
         <td>${g.target_date ? new Date(g.target_date).toLocaleDateString(undefined, { month: "short", year: "numeric" }) : "—"}</td>
+        <td><button class="active-toggle ${g.active ? "is-active" : "is-inactive"}" data-toggle="${g.id}">${g.active ? "Active" : "Inactive"}</button></td>
         <td>
           <div class="row-actions">
             <button class="icon-btn" data-edit="${g.id}">Edit</button>
@@ -41,6 +49,18 @@ function renderRows() {
 
   rowsEl.querySelectorAll("[data-edit]").forEach((btn) => btn.addEventListener("click", () => startEdit(Number(btn.dataset.edit))));
   rowsEl.querySelectorAll("[data-delete]").forEach((btn) => btn.addEventListener("click", () => remove(Number(btn.dataset.delete))));
+  rowsEl.querySelectorAll("[data-toggle]").forEach((btn) => btn.addEventListener("click", () => toggleActive(Number(btn.dataset.toggle))));
+}
+
+async function toggleActive(id) {
+  const g = goals.find((x) => x.id === id);
+  if (!g) return;
+  try {
+    await api(`/api/goals/${id}`, { method: "PUT", body: JSON.stringify({ active: !g.active }) });
+    await load();
+  } catch (err) {
+    alert(err.message);
+  }
 }
 
 function startEdit(id) {

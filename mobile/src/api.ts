@@ -64,7 +64,7 @@ export const api = {
   // dashboard. The app only reads categories (to log transactions against
   // them) and reads budgets/goals (to show progress on Insights).
   categories: {
-    list: (type?: string) => request(`/api/categories${type ? `?type=${type}` : ""}`),
+    list: (type?: string) => request(`/api/categories?${new URLSearchParams({ ...(type ? { type } : {}), active: "true" }).toString()}`),
   },
 
   transactions: {
@@ -76,11 +76,11 @@ export const api = {
   },
 
   budgets: {
-    list: (month: string) => request(`/api/budgets?month=${month}`),
+    list: (month: string) => request(`/api/budgets?${new URLSearchParams({ month, active: "true" }).toString()}`),
   },
 
   goals: {
-    list: () => request("/api/goals"),
+    list: () => request(`/api/goals?active=true`),
   },
 
   summary: (month: string) => request(`/api/summary?month=${month}`),

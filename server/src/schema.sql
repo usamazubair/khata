@@ -20,7 +20,8 @@ CREATE TABLE categories (
   slug       TEXT NOT NULL UNIQUE,
   type       TEXT NOT NULL CHECK (type IN ('fixed', 'expense', 'saved', 'budget')),
   color      TEXT NOT NULL,
-  sort_order INT NOT NULL DEFAULT 0
+  sort_order INT NOT NULL DEFAULT 0,
+  active     BOOLEAN NOT NULL DEFAULT TRUE
 );
 
 CREATE TABLE fixed_expenses (
@@ -41,7 +42,8 @@ CREATE TABLE goals (
   description TEXT NOT NULL DEFAULT '',
   price       NUMERIC(12, 2) NOT NULL CHECK (price >= 0),
   category_id INT NOT NULL UNIQUE REFERENCES categories(id) ON DELETE RESTRICT,
-  target_date DATE
+  target_date DATE,
+  active      BOOLEAN NOT NULL DEFAULT TRUE
 );
 
 CREATE TABLE budgets (
@@ -50,7 +52,8 @@ CREATE TABLE budgets (
   slug        TEXT NOT NULL UNIQUE,
   description TEXT NOT NULL DEFAULT '',
   price       NUMERIC(12, 2) NOT NULL CHECK (price >= 0),
-  category_id INT NOT NULL UNIQUE REFERENCES categories(id) ON DELETE RESTRICT
+  category_id INT NOT NULL UNIQUE REFERENCES categories(id) ON DELETE RESTRICT,
+  active      BOOLEAN NOT NULL DEFAULT TRUE
 );
 
 CREATE TABLE transactions (

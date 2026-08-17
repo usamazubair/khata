@@ -12,7 +12,7 @@ const SELECT = `
 `;
 
 router.get("/", asyncHandler(async (req, res) => {
-  const { month, category_id, paid, limit } = req.query;
+  const { month, category_id, category_type, paid, limit, q, date_from, date_to } = req.query;
   const clauses = [];
   const params = [];
 
@@ -24,9 +24,25 @@ router.get("/", asyncHandler(async (req, res) => {
     params.push(category_id);
     clauses.push(`t.category_id = $${params.length}`);
   }
+  if (category_type) {
+    params.push(category_type);
+    clauses.push(`c.type = $${params.length}`);
+  }
   if (paid === "true" || paid === "false") {
     params.push(paid === "true");
     clauses.push(`t.is_paid = $${params.length}`);
+  }
+  if (date_from) {
+    params.push(date_from);
+    clauses.push(`t.occurred_on >= $${params.length}`);
+  }
+  if (date_to) {
+    params.push(date_to);
+    clauses.push(`t.occurred_on <= $${params.length}`);
+  }
+  if (q) {
+    params.push(`%${q}%`);
+    clauses.push(`(t.description ILIKE $${params.length} OR c.name ILIKE $${params.length})`);
   }
 
   let sql = SELECT + (clauses.length ? `WHERE ${clauses.join(" AND ")} ` : "") + "ORDER BY t.occurred_on DESC, t.created_at DESC";

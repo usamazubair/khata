@@ -1,12 +1,11 @@
-import { useCallback, useMemo, useState } from "react";
-import { View, Text, SectionList, StyleSheet, Pressable, RefreshControl } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { View, Text, TextInput, SectionList, StyleSheet, Pressable, RefreshControl } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
+import { Ionicons } from "@expo/vector-icons";
 import { useTheme, fonts } from "../theme";
 import { api, currentMonth, money, ApiNotConfiguredError } from "../api";
 import { Transaction } from "../types";
 import Dot from "../components/Dot";
-
-type Filter = "all" | "month" | "unpaid";
 
 function dayLabel(iso: string) {
   const d = new Date(iso);
@@ -19,17 +18,21 @@ function dayLabel(iso: string) {
   return d.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" });
 }
 
+// Always scoped to the current month — Transactions is meant for "what's
+// happened lately," not a full-history browser.
 export default function TransactionsScreen() {
   const t = useTheme();
   const [items, setItems] = useState<Transaction[]>([]);
-  const [filter, setFilter] = useState<Filter>("all");
+  const [query, setQuery] = useState("");
+  const [unpaidOnly, setUnpaidOnly] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const load = useCallback(async (f: Filter) => {
-    const params: Record<string, string> = {};
-    if (f === "month") params.month = currentMonth();
-    if (f === "unpaid") params.paid = "false";
+  const load = useCallback(async (q: string, unpaid: boolean) => {
+    const params: Record<string, string> = { month: currentMonth() };
+    if (unpaid) params.paid = "false";
+    if (q.trim()) params.q = q.trim();
     try {
       const rows = await api.transactions.list(params);
       setItems(rows);
@@ -41,13 +44,23 @@ export default function TransactionsScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      load(filter);
-    }, [load, filter])
+      load(query, unpaidOnly);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [load, unpaidOnly])
   );
+
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => load(query, unpaidOnly), 300);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query]);
 
   async function onRefresh() {
     setRefreshing(true);
-    await load(filter);
+    await load(query, unpaidOnly);
     setRefreshing(false);
   }
 
@@ -63,21 +76,23 @@ export default function TransactionsScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: t.paper }}>
-      <View style={styles.filterRow}>
-        {(["all", "month", "unpaid"] as Filter[]).map((f) => {
-          const selected = f === filter;
-          return (
-            <Pressable
-              key={f}
-              onPress={() => setFilter(f)}
-              style={[styles.chip, { borderColor: selected ? t.accent : t.rule, backgroundColor: selected ? t.page : "transparent" }]}
-            >
-              <Text style={{ color: t.ink, fontSize: 12, fontWeight: selected ? "600" : "400" }}>
-                {f === "all" ? "All" : f === "month" ? "This month" : "Unpaid"}
-              </Text>
-            </Pressable>
-          );
-        })}
+      <View style={styles.header}>
+        <View style={[styles.searchRow, { borderColor: t.rule, backgroundColor: t.page }]}>
+          <Ionicons name="search" size={15} color={t.inkMuted} />
+          <TextInput
+            value={query}
+            onChangeText={setQuery}
+            placeholder="Search this month's transactions"
+            placeholderTextColor={t.inkMuted}
+            style={[styles.searchInput, { color: t.ink }]}
+          />
+        </View>
+        <Pressable
+          onPress={() => setUnpaidOnly((v) => !v)}
+          style={[styles.chip, { borderColor: unpaidOnly ? t.accent : t.rule, backgroundColor: unpaidOnly ? t.page : "transparent" }]}
+        >
+          <Text style={{ color: t.ink, fontSize: 12, fontWeight: unpaidOnly ? "600" : "400" }}>Unpaid only</Text>
+        </Pressable>
       </View>
 
       {error && <Text style={{ color: t.inkMuted, fontSize: 13, paddingHorizontal: 18 }}>{error}</Text>}
@@ -100,15 +115,17 @@ export default function TransactionsScreen() {
             <Text style={{ color: t.ink, fontFamily: fonts.mono, fontSize: 13 }}>{money(item.amount)}</Text>
           </View>
         )}
-        ListEmptyComponent={!error ? <Text style={{ color: t.inkMuted, fontSize: 13 }}>Nothing here yet.</Text> : null}
+        ListEmptyComponent={!error ? <Text style={{ color: t.inkMuted, fontSize: 13, paddingHorizontal: 18 }}>Nothing here yet.</Text> : null}
       />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  filterRow: { flexDirection: "row", gap: 8, paddingHorizontal: 18, paddingTop: 14, paddingBottom: 6 },
-  chip: { borderWidth: 1, borderRadius: 20, paddingVertical: 7, paddingHorizontal: 12 },
+  header: { flexDirection: "row", gap: 8, paddingHorizontal: 18, paddingTop: 14, paddingBottom: 6 },
+  searchRow: { flex: 1, flexDirection: "row", alignItems: "center", gap: 7, borderWidth: 1, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 8 },
+  searchInput: { flex: 1, fontSize: 13, padding: 0 },
+  chip: { borderWidth: 1, borderRadius: 20, paddingVertical: 8, paddingHorizontal: 12, justifyContent: "center" },
   sectionLabel: { fontSize: 10, textTransform: "uppercase", letterSpacing: 0.6, marginTop: 16, marginBottom: 6 },
   row: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 9, borderBottomWidth: StyleSheet.hairlineWidth },
 });

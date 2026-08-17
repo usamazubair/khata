@@ -69,8 +69,8 @@ router.get("/", asyncHandler(async (req, res) => {
        LIMIT 6`,
       [monthDate]
     ),
-    listBudgets(monthDate),
-    listGoals(),
+    listBudgets(monthDate, { activeOnly: true }),
+    listGoals({ activeOnly: true }),
   ]);
 
   res.json({

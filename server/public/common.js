@@ -87,6 +87,7 @@ function showApp() {
 
 const NAV_LINKS = [
   { href: "index.html", label: "Dashboard" },
+  { href: "transactions.html", label: "Transactions" },
   { href: "categories.html", label: "Categories" },
   { href: "fixed.html", label: "Fixed Transactions" },
   { href: "goals.html", label: "Goals" },

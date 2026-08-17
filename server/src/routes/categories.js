@@ -7,15 +7,23 @@ const router = express.Router();
 const TYPES = ["fixed", "expense", "saved", "budget"];
 
 router.get("/", asyncHandler(async (req, res) => {
-  const { type } = req.query;
+  const { type, active, q } = req.query;
   const clauses = [];
   const params = [];
   if (type) {
     params.push(type);
     clauses.push(`type = $${params.length}`);
   }
+  if (active === "true" || active === "false") {
+    params.push(active === "true");
+    clauses.push(`active = $${params.length}`);
+  }
+  if (q) {
+    params.push(`%${q}%`);
+    clauses.push(`name ILIKE $${params.length}`);
+  }
   const { rows } = await pool.query(
-    `SELECT id, name, slug, type, color, sort_order FROM categories
+    `SELECT id, name, slug, type, color, sort_order, active FROM categories
      ${clauses.length ? `WHERE ${clauses.join(" AND ")}` : ""}
      ORDER BY sort_order, name`,
     params
@@ -24,15 +32,15 @@ router.get("/", asyncHandler(async (req, res) => {
 }));
 
 router.post("/", asyncHandler(async (req, res) => {
-  const { name, type, color, sort_order = 0 } = req.body;
+  const { name, type, color, sort_order = 0, active = true } = req.body;
   if (!name || !TYPES.includes(type) || !color) {
     return res.status(400).json({ error: `name, color, and type (one of ${TYPES.join(", ")}) are required.` });
   }
   try {
     const slug = await uniqueSlug("categories", name);
     const { rows } = await pool.query(
-      "INSERT INTO categories (name, slug, type, color, sort_order) VALUES ($1, $2, $3, $4, $5) RETURNING *",
-      [name, slug, type, color, sort_order]
+      "INSERT INTO categories (name, slug, type, color, sort_order, active) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *",
+      [name, slug, type, color, sort_order, active]
     );
     res.status(201).json(rows[0]);
   } catch (err) {
@@ -42,7 +50,7 @@ router.post("/", asyncHandler(async (req, res) => {
 }));
 
 router.put("/:id", asyncHandler(async (req, res) => {
-  const { name, type, color, sort_order } = req.body;
+  const { name, type, color, sort_order, active } = req.body;
   if (type && !TYPES.includes(type)) {
     return res.status(400).json({ error: `type must be one of ${TYPES.join(", ")}.` });
   }
@@ -53,9 +61,10 @@ router.put("/:id", asyncHandler(async (req, res) => {
        slug = COALESCE($2, slug),
        type = COALESCE($3, type),
        color = COALESCE($4, color),
-       sort_order = COALESCE($5, sort_order)
-     WHERE id = $6 RETURNING *`,
-    [name, slug, type, color, sort_order, req.params.id]
+       sort_order = COALESCE($5, sort_order),
+       active = COALESCE($6, active)
+     WHERE id = $7 RETURNING *`,
+    [name, slug, type, color, sort_order, active, req.params.id]
   );
   if (!rows[0]) return res.status(404).json({ error: "Category not found." });
   res.json(rows[0]);

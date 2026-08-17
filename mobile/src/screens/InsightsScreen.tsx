@@ -1,16 +1,21 @@
 import { useCallback, useState } from "react";
-import { View, Text, ScrollView, StyleSheet, Pressable } from "react-native";
+import { View, Text, TextInput, ScrollView, StyleSheet, Pressable } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
+import { Ionicons } from "@expo/vector-icons";
 import { useTheme, fonts } from "../theme";
 import { api, currentMonth, money, ApiNotConfiguredError } from "../api";
 import { Budget, Goal } from "../types";
 import ProgressBar from "../components/ProgressBar";
 
+// api.budgets.list / api.goals.list already filter to active=true, so
+// deactivated budgets/goals never reach this screen.
 export default function InsightsScreen() {
   const t = useTheme();
   const [tab, setTab] = useState<"budget" | "goals">("budget");
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
+  const [budgetQuery, setBudgetQuery] = useState("");
+  const [goalQuery, setGoalQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   useFocusEffect(
@@ -25,6 +30,9 @@ export default function InsightsScreen() {
     }, [])
   );
 
+  const filteredBudgets = budgets.filter((b) => b.name.toLowerCase().includes(budgetQuery.trim().toLowerCase()));
+  const filteredGoals = goals.filter((g) => g.name.toLowerCase().includes(goalQuery.trim().toLowerCase()));
+
   return (
     <View style={{ flex: 1, backgroundColor: t.paper }}>
       <View style={styles.header}>
@@ -38,16 +46,29 @@ export default function InsightsScreen() {
             </Pressable>
           ))}
         </View>
+
+        <View style={[styles.searchRow, { borderColor: t.rule, backgroundColor: t.page }]}>
+          <Ionicons name="search" size={15} color={t.inkMuted} />
+          <TextInput
+            value={tab === "budget" ? budgetQuery : goalQuery}
+            onChangeText={tab === "budget" ? setBudgetQuery : setGoalQuery}
+            placeholder={tab === "budget" ? "Search budgets" : "Search goals"}
+            placeholderTextColor={t.inkMuted}
+            style={[styles.searchInput, { color: t.ink }]}
+          />
+        </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.list}>
         {error && <Text style={{ color: t.inkMuted, fontSize: 13 }}>{error}</Text>}
 
         {!error && tab === "budget" && (
-          budgets.length === 0 ? (
-            <Text style={{ color: t.inkMuted, fontSize: 13 }}>No budgets set for this month yet.</Text>
+          filteredBudgets.length === 0 ? (
+            <Text style={{ color: t.inkMuted, fontSize: 13 }}>
+              {budgets.length === 0 ? "No active budgets yet." : "No budgets match your search."}
+            </Text>
           ) : (
-            budgets.map((b) => {
+            filteredBudgets.map((b) => {
               const spent = Number(b.spent);
               const price = Number(b.price);
               const remaining = Number(b.remaining);
@@ -75,10 +96,12 @@ export default function InsightsScreen() {
         )}
 
         {!error && tab === "goals" && (
-          goals.length === 0 ? (
-            <Text style={{ color: t.inkMuted, fontSize: 13 }}>No savings goals yet.</Text>
+          filteredGoals.length === 0 ? (
+            <Text style={{ color: t.inkMuted, fontSize: 13 }}>
+              {goals.length === 0 ? "No active savings goals yet." : "No goals match your search."}
+            </Text>
           ) : (
-            goals.map((g) => {
+            filteredGoals.map((g) => {
               const saved = Number(g.saved);
               const price = Number(g.price);
               const remaining = Number(g.remaining);
@@ -117,6 +140,8 @@ const styles = StyleSheet.create({
   title: { fontSize: 22, marginBottom: 12 },
   segmented: { flexDirection: "row", borderRadius: 8, padding: 3, gap: 3 },
   segment: { flex: 1, alignItems: "center", paddingVertical: 6, borderRadius: 6 },
+  searchRow: { flexDirection: "row", alignItems: "center", gap: 7, borderWidth: 1, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 8, marginTop: 10 },
+  searchInput: { flex: 1, fontSize: 13, padding: 0 },
   list: { padding: 18, paddingTop: 10, gap: 12 },
   card: { borderRadius: 12, padding: 13 },
   cardTop: { flexDirection: "row", justifyContent: "space-between", marginTop: 8 },

@@ -13,8 +13,21 @@ async function assertCategoryType(category_id, type) {
 }
 
 // Fixed bills, annotated with whether *this month's* instance has been logged yet.
+// By default returns both active and inactive (the web page manages both);
+// pass ?active=true to get only the ones that should reach the mobile app.
 router.get("/", asyncHandler(async (req, res) => {
   const month = req.query.month || new Date().toISOString().slice(0, 7);
+  const { active, q } = req.query;
+  const clauses = [];
+  const params = [`${month}-01`];
+  if (active === "true" || active === "false") {
+    params.push(active === "true");
+    clauses.push(`f.active = $${params.length}`);
+  }
+  if (q) {
+    params.push(`%${q}%`);
+    clauses.push(`(f.name ILIKE $${params.length} OR f.description ILIKE $${params.length})`);
+  }
   const { rows } = await pool.query(
     `SELECT f.id, f.name, f.slug, f.description, f.amount, f.due_day, f.active,
             f.category_id, c.name AS category_name, c.color AS category_color,
@@ -24,9 +37,9 @@ router.get("/", asyncHandler(async (req, res) => {
      LEFT JOIN transactions t
        ON t.fixed_expense_id = f.id
       AND date_trunc('month', t.occurred_on) = date_trunc('month', $1::date)
-     WHERE f.active
+     ${clauses.length ? `WHERE ${clauses.join(" AND ")}` : ""}
      ORDER BY f.due_day, f.name`,
-    [`${month}-01`]
+    params
   );
   res.json(
     rows.map((r) => ({

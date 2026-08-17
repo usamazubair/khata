@@ -156,3 +156,17 @@ table.data .slug { font-family: var(--font-mono); font-size: 11px; color: var(--
 .form-actions { display: flex; gap: 10px; margin-top: 4px; }
 .form-error { color: var(--critical); font-size: 12.5px; margin: -6px 0 12px; }
 .form-hint { color: var(--ink-muted); font-size: 12px; margin: -6px 0 14px; }
+
+/* search + filter bar */
+.toolbar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; align-items: center; }
+.search-input { flex: 1; min-width: 180px; font-size: 13px; padding: 9px 13px; border-radius: 20px; border: 1px solid var(--rule); background: var(--page); color: var(--ink); }
+.toolbar select, .toolbar input[type="date"] {
+  font-size: 12.5px; padding: 8px 10px; border-radius: 9px; border: 1px solid var(--rule); background: var(--page); color: var(--ink);
+}
+.toolbar .clear-filters { font-size: 12px; color: var(--ink-muted); background: none; border: none; cursor: pointer; text-decoration: underline; }
+
+/* active/inactive toggle pill */
+.active-toggle { border: none; cursor: pointer; font-family: var(--font-mono); font-size: 10.5px; padding: 4px 10px; border-radius: 20px; }
+.active-toggle.is-active { background: color-mix(in srgb, var(--good) 16%, transparent); color: var(--good); }
+.active-toggle.is-inactive { background: var(--page-2); color: var(--ink-muted); }
+tr.inactive-row { opacity: 0.55; }
