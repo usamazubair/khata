@@ -63,12 +63,16 @@ INSERT INTO modules (name, slug, description, icon, kind, sort_order) VALUES
 -- fields (the shape of its table and form), and records hold the rows as
 -- JSONB — so adding a module never changes the database structure.
 
+-- A section with a page_key renders that hand-built page (Khata's screens)
+-- instead of the generic table; it's still renamable, reorderable and
+-- hideable, but can't take fields or be deleted.
 CREATE TABLE sections (
   id         SERIAL PRIMARY KEY,
   module_id  INT NOT NULL REFERENCES modules(id) ON DELETE CASCADE,
   name       TEXT NOT NULL,
   slug       TEXT NOT NULL,
   icon       TEXT NOT NULL DEFAULT '📄',
+  page_key   TEXT,
   sort_order INT NOT NULL DEFAULT 0,
   active     BOOLEAN NOT NULL DEFAULT TRUE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -102,6 +106,20 @@ CREATE TABLE records (
 );
 
 CREATE INDEX idx_sections_module ON sections (module_id);
+
+-- Khata's own pages, as sections, so its navbar is editable like any other.
+INSERT INTO sections (module_id, name, slug, icon, page_key, sort_order)
+SELECT m.id, v.name, v.slug, v.icon, v.page_key, v.sort_order
+FROM modules m
+CROSS JOIN (VALUES
+  ('Overview',           'overview',    '📊', 'khata.html',         1),
+  ('Transactions',       'transactions','📝', 'transactions.html',  2),
+  ('Categories',         'categories',  '🏷️', 'categories.html',    3),
+  ('Fixed Transactions', 'fixed',       '📅', 'fixed.html',         4),
+  ('Goals',              'goals',       '🎯', 'goals.html',         5),
+  ('Budgets',            'budgets',     '💰', 'budgets.html',       6)
+) AS v(name, slug, icon, page_key, sort_order)
+WHERE m.slug = 'khata';
 CREATE INDEX idx_fields_section ON fields (section_id);
 CREATE INDEX idx_records_section ON records (section_id);
 CREATE INDEX idx_records_data ON records USING GIN (data);

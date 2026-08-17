@@ -18,9 +18,7 @@
           <h1 id="module-title">—</h1>
         </div>
         <div id="section-admin" class="header-actions" hidden>
-          <button id="edit-section" class="btn btn-ghost">Edit section</button>
           <button id="manage-fields" class="btn btn-ghost">Manage fields</button>
-          <button id="add-section" class="btn btn-ghost">＋ Section</button>
         </div>
       </header>
 
@@ -29,7 +27,7 @@
         <p style="margin:0 0 8px; font-weight:600;" id="empty-title">No sections yet</p>
         <p class="meta" style="max-width:48ch; margin:0 auto;" id="empty-body">
           Sections are the navigation pages inside this module — each one holds a table of records
-          with fields you define.
+          with fields you define. Turn on <strong>Edit mode</strong> and use <strong>✎ Navigation</strong> to add one.
         </p>
       </div>
 
@@ -50,7 +48,9 @@
           <div class="form-card">
             <h2 id="form-title">Add record</h2>
             <p id="form-error" class="form-error" hidden></p>
-            <p id="no-fields-hint" class="form-hint" hidden>This section has no fields yet. Add some with “Manage fields”.</p>
+            <p id="no-fields-hint" class="form-hint" hidden>
+              This section has no fields yet. Turn on Edit mode, then use “Manage fields”.
+            </p>
             <form id="record-form">
               <div id="form-fields"></div>
               <div class="form-actions">
@@ -65,44 +65,7 @@
     </div>
   </main>
 
-  <!-- add / edit a section -->
-  <div id="section-dialog" class="dialog-backdrop" hidden>
-    <div class="dialog">
-      <h2 id="section-dialog-title">Add section</h2>
-      <p id="section-dialog-error" class="form-error" hidden></p>
-      <form id="section-form">
-        <input type="hidden" id="s-id" />
-        <div class="field-row">
-          <label for="s-name">Section name</label>
-          <input id="s-name" placeholder="Tasks" required />
-        </div>
-        <div class="field-row">
-          <label for="s-icon">Icon (emoji)</label>
-          <input id="s-icon" placeholder="✅" maxlength="4" />
-        </div>
-        <div id="s-existing-only" hidden>
-          <label class="checkbox-row" style="margin-bottom:14px;">
-            <input type="checkbox" id="s-active" />
-            <span>Visible — uncheck to hide this section from the phone app</span>
-          </label>
-          <div class="field-row">
-            <label>Order</label>
-            <div class="reorder-row">
-              <button type="button" class="btn btn-ghost" id="s-move-up">‹ Move earlier</button>
-              <button type="button" class="btn btn-ghost" id="s-move-down">Move later ›</button>
-            </div>
-          </div>
-        </div>
-        <div class="form-actions">
-          <button type="submit" class="btn btn-primary">Save</button>
-          <button type="button" class="btn btn-ghost" data-close="section-dialog">Cancel</button>
-          <button type="button" id="delete-section" class="btn btn-ghost danger-btn" style="margin-left:auto;" hidden>Delete</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- manage the current section's fields -->
+  <!-- manage the current section's fields (edit mode only) -->
   <div id="fields-dialog" class="dialog-backdrop" hidden>
     <div class="dialog" style="max-width:520px;">
       <h2>Fields — <span id="fields-dialog-section"></span></h2>

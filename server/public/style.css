@@ -232,3 +232,20 @@ tr.inactive-row { opacity: 0.55; }
 .reorder-row .btn { flex: 1; }
 .btn:disabled, .icon-btn:disabled { opacity: 0.35; cursor: default; }
 .btn.danger-btn { color: var(--critical); border-color: var(--critical); }
+
+/* edit vs view mode */
+.mode-toggle {
+  border: 1px solid var(--rule); background: transparent; color: var(--ink-muted);
+  font-size: 12.5px; padding: 7px 14px; border-radius: 20px; cursor: pointer;
+  flex-shrink: 0; white-space: nowrap;
+}
+.mode-toggle:hover { color: var(--ink); border-color: var(--ink-muted); }
+.mode-toggle.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.nav-edit-link {
+  border: 1px dashed var(--rule); background: transparent; color: var(--ink-muted);
+  font-size: 12.5px; padding: 7px 12px; border-radius: 8px; cursor: pointer; white-space: nowrap;
+}
+.nav-edit-link:hover { color: var(--accent); border-color: var(--accent); }
+/* A thin rule along the top makes it obvious the structure is unlocked. */
+body.edit-mode .navbar { box-shadow: inset 0 3px 0 var(--accent); }
+.field-list-row.dim { opacity: 0.55; }

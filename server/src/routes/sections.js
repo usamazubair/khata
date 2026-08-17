@@ -103,6 +103,13 @@ router.delete(
   requireAdmin,
   withModuleAccess(async (req) => moduleIdForSection(Number(req.params.id))),
   asyncHandler(async (req, res) => {
+    // Built-in sections front a hand-built page, so removing the row would
+    // orphan a page that still exists. Hide it instead.
+    const { rows: section } = await pool.query("SELECT page_key FROM sections WHERE id = $1", [req.params.id]);
+    if (section[0]?.page_key) {
+      return res.status(409).json({ error: "This is a built-in page — hide it instead of deleting it." });
+    }
+
     // Fields and records cascade — warn the caller how much goes with it.
     const { rows } = await pool.query("SELECT COUNT(*)::int AS total FROM records WHERE section_id = $1", [
       req.params.id,
@@ -127,6 +134,12 @@ router.post(
   asyncHandler(async (req, res) => {
     const { name, type, required = false, options = {}, sort_order } = req.body;
     if (!name || !String(name).trim()) return res.status(400).json({ error: "Field name is required." });
+
+    // Built-in pages draw their own layout — fields would have nothing to render into.
+    const { rows: owner } = await pool.query("SELECT page_key FROM sections WHERE id = $1", [req.params.id]);
+    if (owner[0]?.page_key) {
+      return res.status(409).json({ error: "Built-in pages have their own layout — fields can't be added to them." });
+    }
     if (!FIELD_TYPES.includes(type)) {
       return res.status(400).json({ error: `Field type must be one of: ${FIELD_TYPES.join(", ")}.` });
     }

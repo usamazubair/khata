@@ -1,4 +1,9 @@
-window.khataNav = { module: "generic" };
+const slug = new URLSearchParams(location.search).get("slug");
+const wantedSection = new URLSearchParams(location.search).get("section");
+
+// common.js builds the navbar and owns the section editor; this page owns the
+// records table, its form, and the field manager for the current section.
+window.khataNav = { module: slug, section: wantedSection };
 
 const FIELD_TYPE_LABELS = {
   text: "Text",
@@ -12,10 +17,6 @@ const FIELD_TYPE_LABELS = {
   relation: "Link to a record",
 };
 
-const slug = new URLSearchParams(location.search).get("slug");
-
-let mod = null;
-let sections = [];
 let activeSection = null;
 let records = [];
 let editingId = null;
@@ -25,13 +26,7 @@ let searchTimer = null;
 // Target-section records for relation dropdowns, fetched once per section.
 const relationOptions = new Map();
 
-const isAdmin = () => currentUser?.role === "admin";
-
 /* ── helpers ───────────────────────────────────────────────────────────── */
-
-function sectionHref(s) {
-  return `module.html?slug=${encodeURIComponent(slug)}&section=${encodeURIComponent(s.slug)}`;
-}
 
 function formatCell(field, record) {
   const value = record.data?.[field.key];
@@ -67,23 +62,6 @@ async function relationChoices(field) {
   return relationOptions.get(targetId);
 }
 
-/* ── nav + section tabs ────────────────────────────────────────────────── */
-
-function renderSectionTabs() {
-  const navName = document.getElementById("nav-module-name");
-  if (navName) navName.textContent = `${mod.icon} ${mod.name}`;
-
-  const links = document.querySelector(".nav-links");
-  if (!links) return;
-  const visible = sections.filter((s) => s.active || isAdmin());
-  links.innerHTML = visible
-    .map(
-      (s) =>
-        `<a href="${sectionHref(s)}" class="${activeSection && s.id === activeSection.id ? "active" : ""}${s.active ? "" : " dim"}">${escapeHtml(s.icon)} ${escapeHtml(s.name)}</a>`
-    )
-    .join("");
-}
-
 /* ── record table ──────────────────────────────────────────────────────── */
 
 function renderTable() {
@@ -91,18 +69,16 @@ function renderTable() {
   const head = document.getElementById("table-head");
   const body = document.getElementById("rows");
 
-  head.innerHTML =
-    fields.map((f) => `<th>${escapeHtml(f.name)}</th>`).join("") + "<th>Status</th><th></th>";
+  head.innerHTML = fields.map((f) => `<th>${escapeHtml(f.name)}</th>`).join("") + "<th>Status</th><th></th>";
 
-  const filtered = records;
-  if (!filtered.length) {
+  if (!records.length) {
     body.innerHTML = `<tr><td colspan="${fields.length + 2}" class="empty">${
       searchQuery ? "No records match your search." : "No records yet."
     }</td></tr>`;
     return;
   }
 
-  body.innerHTML = filtered
+  body.innerHTML = records
     .map(
       (r) => `
       <tr class="${r.active ? "" : "inactive-row"}">
@@ -127,7 +103,6 @@ function renderTable() {
 
 async function renderForm(values = {}) {
   const fields = activeSection.fields;
-  const container = document.getElementById("form-fields");
   document.getElementById("no-fields-hint").hidden = fields.length > 0;
   document.getElementById("record-save").hidden = fields.length === 0;
 
@@ -176,7 +151,7 @@ async function renderForm(values = {}) {
     parts.push(`<div class="field-row">${label}${control}</div>`);
   }
 
-  container.innerHTML = parts.join("");
+  document.getElementById("form-fields").innerHTML = parts.join("");
 }
 
 function readForm() {
@@ -256,7 +231,7 @@ document.getElementById("search").addEventListener("input", (e) => {
   searchTimer = setTimeout(loadRecords, 300);
 });
 
-/* ── section dialog (admin) ────────────────────────────────────────────── */
+/* ── fields dialog (edit mode only) ────────────────────────────────────── */
 
 function openDialog(id) {
   document.getElementById(id).hidden = false;
@@ -268,102 +243,8 @@ document.querySelectorAll("[data-close]").forEach((b) =>
   b.addEventListener("click", () => closeDialog(b.dataset.close))
 );
 document.addEventListener("keydown", (e) => {
-  if (e.key !== "Escape") return;
-  ["section-dialog", "fields-dialog"].forEach((id) => closeDialog(id));
+  if (e.key === "Escape") closeDialog("fields-dialog");
 });
-
-document.getElementById("add-section").addEventListener("click", () => {
-  document.getElementById("section-form").reset();
-  document.getElementById("s-id").value = "";
-  document.getElementById("section-dialog-title").textContent = "Add section";
-  document.getElementById("delete-section").hidden = true;
-  document.getElementById("s-existing-only").hidden = true;
-  document.getElementById("section-dialog-error").hidden = true;
-  openDialog("section-dialog");
-  document.getElementById("s-name").focus();
-});
-
-function openSectionEditor() {
-  if (!activeSection) return;
-  document.getElementById("s-id").value = activeSection.id;
-  document.getElementById("s-name").value = activeSection.name;
-  document.getElementById("s-icon").value = activeSection.icon;
-  document.getElementById("s-active").checked = activeSection.active;
-  document.getElementById("section-dialog-title").textContent = "Edit section";
-  document.getElementById("delete-section").hidden = false;
-  document.getElementById("s-existing-only").hidden = false;
-  document.getElementById("section-dialog-error").hidden = true;
-
-  const idx = sections.findIndex((s) => s.id === activeSection.id);
-  document.getElementById("s-move-up").disabled = idx <= 0;
-  document.getElementById("s-move-down").disabled = idx === -1 || idx >= sections.length - 1;
-
-  openDialog("section-dialog");
-  document.getElementById("s-name").focus();
-}
-
-document.getElementById("edit-section").addEventListener("click", openSectionEditor);
-
-// Swaps this section's position with its neighbour by exchanging sort_order.
-async function moveSection(delta) {
-  const idx = sections.findIndex((s) => s.id === activeSection.id);
-  const neighbour = sections[idx + delta];
-  if (!neighbour) return;
-  try {
-    await Promise.all([
-      api(`/api/sections/${activeSection.id}`, { method: "PUT", body: JSON.stringify({ sort_order: neighbour.sort_order }) }),
-      api(`/api/sections/${neighbour.id}`, { method: "PUT", body: JSON.stringify({ sort_order: activeSection.sort_order }) }),
-    ]);
-    await reloadSections();
-    renderSectionTabs();
-    openSectionEditor();
-  } catch (err) {
-    alert(err.message);
-  }
-}
-
-document.getElementById("s-move-up").addEventListener("click", () => moveSection(-1));
-document.getElementById("s-move-down").addEventListener("click", () => moveSection(1));
-
-document.getElementById("section-form").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const errorEl = document.getElementById("section-dialog-error");
-  errorEl.hidden = true;
-  const id = document.getElementById("s-id").value;
-  const payload = {
-    name: document.getElementById("s-name").value.trim(),
-    icon: document.getElementById("s-icon").value.trim() || "📄",
-  };
-  if (id) payload.active = document.getElementById("s-active").checked;
-  const body = JSON.stringify(payload);
-  try {
-    const saved = id
-      ? await api(`/api/sections/${id}`, { method: "PUT", body })
-      : await api(`/api/modules/${mod.id}/sections`, { method: "POST", body });
-    closeDialog("section-dialog");
-    location.search = `?slug=${encodeURIComponent(slug)}&section=${encodeURIComponent(saved.slug)}`;
-  } catch (err) {
-    errorEl.textContent = err.message;
-    errorEl.hidden = false;
-  }
-});
-
-document.getElementById("delete-section").addEventListener("click", async () => {
-  const id = document.getElementById("s-id").value;
-  if (!id) return;
-  try {
-    await api(`/api/sections/${id}`, { method: "DELETE" });
-    location.search = `?slug=${encodeURIComponent(slug)}`;
-  } catch (err) {
-    // The server refuses the first time when records would go with it.
-    if (confirm(`${err.message} Delete it anyway?`)) {
-      await api(`/api/sections/${id}?confirm=true`, { method: "DELETE" });
-      location.search = `?slug=${encodeURIComponent(slug)}`;
-    }
-  }
-});
-
-/* ── fields dialog (admin) ─────────────────────────────────────────────── */
 
 function renderFieldList() {
   const el = document.getElementById("field-list");
@@ -390,11 +271,9 @@ function renderFieldList() {
   el.querySelectorAll("[data-editfield]").forEach((b) =>
     b.addEventListener("click", () => startFieldEdit(Number(b.dataset.editfield)))
   );
-
   el.querySelectorAll("[data-movefield]:not([disabled])").forEach((b) =>
     b.addEventListener("click", () => moveField(Number(b.dataset.movefield), Number(b.dataset.dir)))
   );
-
   el.querySelectorAll("[data-delfield]").forEach((b) =>
     b.addEventListener("click", async () => {
       const field = fields.find((f) => f.id === Number(b.dataset.delfield));
@@ -428,7 +307,9 @@ async function moveField(id, delta) {
 
 // A schema change moves the table columns and the form inputs together.
 async function refreshAfterSchemaChange() {
-  await reloadSections();
+  const fresh = await api(`/api/modules/${navModule.id}/sections`);
+  navSections = fresh;
+  activeSection = fresh.find((s) => s.id === activeSection.id) || activeSection;
   renderFieldList();
   renderTable();
   await resetForm();
@@ -442,7 +323,6 @@ function startFieldEdit(id) {
   document.getElementById("f-name").value = field.name;
   document.getElementById("f-required").checked = field.required;
 
-  // The type is fixed once values are stored under the field's key.
   const typeSelect = document.getElementById("f-type");
   typeSelect.value = field.type;
   typeSelect.disabled = true;
@@ -466,8 +346,7 @@ function resetFieldForm() {
   editingFieldId = null;
   document.getElementById("field-form").reset();
   document.getElementById("f-id").value = "";
-  const typeSelect = document.getElementById("f-type");
-  typeSelect.disabled = false;
+  document.getElementById("f-type").disabled = false;
   document.getElementById("f-type-locked").hidden = true;
   document.getElementById("field-form-title").textContent = "Add a field";
   document.getElementById("field-save").textContent = "Add field";
@@ -478,7 +357,7 @@ function resetFieldForm() {
 
 document.getElementById("field-cancel-edit").addEventListener("click", resetFieldForm);
 
-document.getElementById("manage-fields").addEventListener("click", async () => {
+document.getElementById("manage-fields").addEventListener("click", () => {
   document.getElementById("fields-dialog-section").textContent = activeSection.name;
   resetFieldForm();
   renderFieldList();
@@ -491,7 +370,9 @@ function renderTypeExtras() {
   const relationRow = document.getElementById("relation-row");
   relationRow.hidden = type !== "relation";
   if (type === "relation") {
-    document.getElementById("f-relation").innerHTML = sections
+    // Only generic sections hold records worth linking to.
+    document.getElementById("f-relation").innerHTML = navSections
+      .filter((s) => !s.page_key)
       .map((s) => `<option value="${s.id}">${escapeHtml(s.name)}</option>`)
       .join("");
   }
@@ -522,10 +403,7 @@ document.getElementById("field-form").addEventListener("submit", async (e) => {
     if (editingFieldId) {
       // The key and type are fixed; only label, required and options change.
       const { name, required, options } = body;
-      await api(`/api/fields/${editingFieldId}`, {
-        method: "PUT",
-        body: JSON.stringify({ name, required, options }),
-      });
+      await api(`/api/fields/${editingFieldId}`, { method: "PUT", body: JSON.stringify({ name, required, options }) });
     } else {
       await api(`/api/sections/${activeSection.id}/fields`, { method: "POST", body: JSON.stringify(body) });
     }
@@ -539,24 +417,29 @@ document.getElementById("field-form").addEventListener("submit", async (e) => {
 
 /* ── loading ───────────────────────────────────────────────────────────── */
 
-async function reloadSections() {
-  sections = await api(`/api/modules/${mod.id}/sections`);
-  if (activeSection) activeSection = sections.find((s) => s.id === activeSection.id) || activeSection;
-}
-
 async function loadRecords() {
   const params = new URLSearchParams();
   if (searchQuery) params.set("q", searchQuery);
-  if (!isAdmin()) params.set("active", "true");
+  if (!canEdit()) params.set("active", "true");
   records = await api(`/api/sections/${activeSection.id}/records?${params.toString()}`);
   renderTable();
 }
 
-async function load() {
-  const modules = await api("/api/modules");
-  mod = modules.find((m) => m.slug === slug);
+function applyMode() {
+  document.getElementById("section-admin").hidden = !(canEdit() && activeSection && !activeSection.page_key);
+}
 
-  if (!mod) {
+// common.js calls these when the mode flips or sections change under us.
+window.khataOnModeChange = () => {
+  applyMode();
+  if (activeSection) loadRecords();
+};
+window.khataOnSectionsChange = (sections) => {
+  if (activeSection) activeSection = sections.find((s) => s.id === activeSection.id) || activeSection;
+};
+
+async function load() {
+  if (!navModule) {
     document.getElementById("module-title").textContent = "Module not found";
     document.getElementById("module-kicker").textContent = "";
     document.getElementById("empty-state").hidden = false;
@@ -565,31 +448,32 @@ async function load() {
     return;
   }
 
-  document.title = `Khata — ${mod.name}`;
-  document.getElementById("module-title").textContent = mod.name;
-  document.getElementById("module-kicker").textContent = mod.description || "Module";
-  document.getElementById("empty-icon").textContent = mod.icon;
-  document.getElementById("section-admin").hidden = !isAdmin();
+  document.title = `Khata — ${navModule.name}`;
+  document.getElementById("module-title").textContent = navModule.name;
+  document.getElementById("module-kicker").textContent = navModule.description || "Module";
+  document.getElementById("empty-icon").textContent = navModule.icon;
 
-  sections = await api(`/api/modules/${mod.id}/sections`);
-  const wanted = new URLSearchParams(location.search).get("section");
-  const selectable = sections.filter((s) => s.active || isAdmin());
-  activeSection = selectable.find((s) => s.slug === wanted) || selectable[0] || null;
+  const selectable = navSections.filter((s) => s.active || canEdit());
+  activeSection = selectable.find((s) => s.slug === wantedSection) || selectable.find((s) => !s.page_key) || null;
 
-  renderSectionTabs();
+  // A built-in section has its own page — send the browser there instead.
+  if (activeSection?.page_key) {
+    location.replace(activeSection.page_key);
+    return;
+  }
+
+  applyMode();
 
   if (!activeSection) {
     document.getElementById("empty-state").hidden = false;
     document.getElementById("section-body").hidden = true;
-    document.getElementById("manage-fields").hidden = true;
     return;
   }
 
   document.getElementById("empty-state").hidden = true;
   document.getElementById("section-body").hidden = false;
-  document.getElementById("manage-fields").hidden = !isAdmin();
-
-  document.getElementById("edit-section").hidden = !isAdmin();
+  document.getElementById("module-title").textContent = activeSection.name;
+  document.getElementById("module-kicker").textContent = navModule.name;
 
   document.getElementById("f-type").innerHTML = Object.entries(FIELD_TYPE_LABELS)
     .map(([value, label]) => `<option value="${value}">${label}</option>`)
