@@ -18,6 +18,7 @@
           <h1 id="module-title">—</h1>
         </div>
         <div id="section-admin" class="header-actions" hidden>
+          <button id="edit-section" class="btn btn-ghost">Edit section</button>
           <button id="manage-fields" class="btn btn-ghost">Manage fields</button>
           <button id="add-section" class="btn btn-ghost">＋ Section</button>
         </div>
@@ -79,10 +80,23 @@
           <label for="s-icon">Icon (emoji)</label>
           <input id="s-icon" placeholder="✅" maxlength="4" />
         </div>
+        <div id="s-existing-only" hidden>
+          <label class="checkbox-row" style="margin-bottom:14px;">
+            <input type="checkbox" id="s-active" />
+            <span>Visible — uncheck to hide this section from the phone app</span>
+          </label>
+          <div class="field-row">
+            <label>Order</label>
+            <div class="reorder-row">
+              <button type="button" class="btn btn-ghost" id="s-move-up">‹ Move earlier</button>
+              <button type="button" class="btn btn-ghost" id="s-move-down">Move later ›</button>
+            </div>
+          </div>
+        </div>
         <div class="form-actions">
           <button type="submit" class="btn btn-primary">Save</button>
           <button type="button" class="btn btn-ghost" data-close="section-dialog">Cancel</button>
-          <button type="button" id="delete-section" class="btn btn-ghost" style="margin-left:auto;" hidden>Delete</button>
+          <button type="button" id="delete-section" class="btn btn-ghost danger-btn" style="margin-left:auto;" hidden>Delete</button>
         </div>
       </form>
     </div>
@@ -94,9 +108,10 @@
       <h2>Fields — <span id="fields-dialog-section"></span></h2>
       <div id="field-list" class="field-list"></div>
 
-      <h3 class="form-subhead">Add a field</h3>
+      <h3 class="form-subhead" id="field-form-title">Add a field</h3>
       <p id="fields-dialog-error" class="form-error" hidden></p>
       <form id="field-form">
+        <input type="hidden" id="f-id" />
         <div class="field-grid">
           <div class="field-row">
             <label for="f-name">Label</label>
@@ -105,6 +120,7 @@
           <div class="field-row">
             <label for="f-type">Type</label>
             <select id="f-type"></select>
+            <span id="f-type-locked" class="form-hint" style="margin:0;" hidden>Type can't change — values are already stored under it.</span>
           </div>
         </div>
         <div class="field-row" id="choices-row" hidden>
@@ -120,7 +136,8 @@
           <span>Required</span>
         </label>
         <div class="form-actions">
-          <button type="submit" class="btn btn-primary">Add field</button>
+          <button type="submit" class="btn btn-primary" id="field-save">Add field</button>
+          <button type="button" class="btn btn-ghost" id="field-cancel-edit" hidden>Cancel edit</button>
           <button type="button" class="btn btn-ghost" data-close="fields-dialog">Done</button>
         </div>
       </form>

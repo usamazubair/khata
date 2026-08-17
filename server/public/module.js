@@ -19,6 +19,7 @@ let sections = [];
 let activeSection = null;
 let records = [];
 let editingId = null;
+let editingFieldId = null;
 let searchQuery = "";
 let searchTimer = null;
 // Target-section records for relation dropdowns, fetched once per section.
@@ -276,20 +277,65 @@ document.getElementById("add-section").addEventListener("click", () => {
   document.getElementById("s-id").value = "";
   document.getElementById("section-dialog-title").textContent = "Add section";
   document.getElementById("delete-section").hidden = true;
+  document.getElementById("s-existing-only").hidden = true;
   document.getElementById("section-dialog-error").hidden = true;
   openDialog("section-dialog");
   document.getElementById("s-name").focus();
 });
+
+function openSectionEditor() {
+  if (!activeSection) return;
+  document.getElementById("s-id").value = activeSection.id;
+  document.getElementById("s-name").value = activeSection.name;
+  document.getElementById("s-icon").value = activeSection.icon;
+  document.getElementById("s-active").checked = activeSection.active;
+  document.getElementById("section-dialog-title").textContent = "Edit section";
+  document.getElementById("delete-section").hidden = false;
+  document.getElementById("s-existing-only").hidden = false;
+  document.getElementById("section-dialog-error").hidden = true;
+
+  const idx = sections.findIndex((s) => s.id === activeSection.id);
+  document.getElementById("s-move-up").disabled = idx <= 0;
+  document.getElementById("s-move-down").disabled = idx === -1 || idx >= sections.length - 1;
+
+  openDialog("section-dialog");
+  document.getElementById("s-name").focus();
+}
+
+document.getElementById("edit-section").addEventListener("click", openSectionEditor);
+
+// Swaps this section's position with its neighbour by exchanging sort_order.
+async function moveSection(delta) {
+  const idx = sections.findIndex((s) => s.id === activeSection.id);
+  const neighbour = sections[idx + delta];
+  if (!neighbour) return;
+  try {
+    await Promise.all([
+      api(`/api/sections/${activeSection.id}`, { method: "PUT", body: JSON.stringify({ sort_order: neighbour.sort_order }) }),
+      api(`/api/sections/${neighbour.id}`, { method: "PUT", body: JSON.stringify({ sort_order: activeSection.sort_order }) }),
+    ]);
+    await reloadSections();
+    renderSectionTabs();
+    openSectionEditor();
+  } catch (err) {
+    alert(err.message);
+  }
+}
+
+document.getElementById("s-move-up").addEventListener("click", () => moveSection(-1));
+document.getElementById("s-move-down").addEventListener("click", () => moveSection(1));
 
 document.getElementById("section-form").addEventListener("submit", async (e) => {
   e.preventDefault();
   const errorEl = document.getElementById("section-dialog-error");
   errorEl.hidden = true;
   const id = document.getElementById("s-id").value;
-  const body = JSON.stringify({
+  const payload = {
     name: document.getElementById("s-name").value.trim(),
     icon: document.getElementById("s-icon").value.trim() || "📄",
-  });
+  };
+  if (id) payload.active = document.getElementById("s-active").checked;
+  const body = JSON.stringify(payload);
   try {
     const saved = id
       ? await api(`/api/sections/${id}`, { method: "PUT", body })
@@ -328,15 +374,26 @@ function renderFieldList() {
   }
   el.innerHTML = fields
     .map(
-      (f) => `
+      (f, i) => `
       <div class="field-list-row">
         <span class="field-list-name">${escapeHtml(f.name)}${f.required ? " *" : ""}</span>
         <span class="slug">${escapeHtml(f.key)}</span>
         <span class="pill">${FIELD_TYPE_LABELS[f.type] || f.type}</span>
+        <button class="icon-btn" data-movefield="${f.id}" data-dir="-1" ${i === 0 ? "disabled" : ""} title="Move up">↑</button>
+        <button class="icon-btn" data-movefield="${f.id}" data-dir="1" ${i === fields.length - 1 ? "disabled" : ""} title="Move down">↓</button>
+        <button class="icon-btn" data-editfield="${f.id}">Edit</button>
         <button class="icon-btn danger" data-delfield="${f.id}">Remove</button>
       </div>`
     )
     .join("");
+
+  el.querySelectorAll("[data-editfield]").forEach((b) =>
+    b.addEventListener("click", () => startFieldEdit(Number(b.dataset.editfield)))
+  );
+
+  el.querySelectorAll("[data-movefield]:not([disabled])").forEach((b) =>
+    b.addEventListener("click", () => moveField(Number(b.dataset.movefield), Number(b.dataset.dir)))
+  );
 
   el.querySelectorAll("[data-delfield]").forEach((b) =>
     b.addEventListener("click", async () => {
@@ -344,10 +401,8 @@ function renderFieldList() {
       if (!confirm(`Remove the "${field.name}" field? Values already stored under it stop showing.`)) return;
       try {
         await api(`/api/fields/${field.id}`, { method: "DELETE" });
-        await reloadSections();
-        renderFieldList();
-        renderTable();
-        await resetForm();
+        if (editingFieldId === field.id) resetFieldForm();
+        await refreshAfterSchemaChange();
       } catch (err) {
         alert(err.message);
       }
@@ -355,12 +410,78 @@ function renderFieldList() {
   );
 }
 
+async function moveField(id, delta) {
+  const fields = activeSection.fields;
+  const idx = fields.findIndex((f) => f.id === id);
+  const neighbour = fields[idx + delta];
+  if (!neighbour) return;
+  try {
+    await Promise.all([
+      api(`/api/fields/${id}`, { method: "PUT", body: JSON.stringify({ sort_order: neighbour.sort_order }) }),
+      api(`/api/fields/${neighbour.id}`, { method: "PUT", body: JSON.stringify({ sort_order: fields[idx].sort_order }) }),
+    ]);
+    await refreshAfterSchemaChange();
+  } catch (err) {
+    alert(err.message);
+  }
+}
+
+// A schema change moves the table columns and the form inputs together.
+async function refreshAfterSchemaChange() {
+  await reloadSections();
+  renderFieldList();
+  renderTable();
+  await resetForm();
+}
+
+function startFieldEdit(id) {
+  const field = activeSection.fields.find((f) => f.id === id);
+  if (!field) return;
+  editingFieldId = id;
+  document.getElementById("f-id").value = id;
+  document.getElementById("f-name").value = field.name;
+  document.getElementById("f-required").checked = field.required;
+
+  // The type is fixed once values are stored under the field's key.
+  const typeSelect = document.getElementById("f-type");
+  typeSelect.value = field.type;
+  typeSelect.disabled = true;
+  document.getElementById("f-type-locked").hidden = false;
+
+  renderTypeExtras();
+  if (field.type === "select") {
+    document.getElementById("f-choices").value = (field.options?.choices || []).join("\n");
+  }
+  if (field.type === "relation") {
+    document.getElementById("f-relation").value = field.options?.section_id ?? "";
+  }
+
+  document.getElementById("field-form-title").textContent = `Edit “${field.name}”`;
+  document.getElementById("field-save").textContent = "Save changes";
+  document.getElementById("field-cancel-edit").hidden = false;
+  document.getElementById("fields-dialog-error").hidden = true;
+}
+
+function resetFieldForm() {
+  editingFieldId = null;
+  document.getElementById("field-form").reset();
+  document.getElementById("f-id").value = "";
+  const typeSelect = document.getElementById("f-type");
+  typeSelect.disabled = false;
+  document.getElementById("f-type-locked").hidden = true;
+  document.getElementById("field-form-title").textContent = "Add a field";
+  document.getElementById("field-save").textContent = "Add field";
+  document.getElementById("field-cancel-edit").hidden = true;
+  document.getElementById("fields-dialog-error").hidden = true;
+  renderTypeExtras();
+}
+
+document.getElementById("field-cancel-edit").addEventListener("click", resetFieldForm);
+
 document.getElementById("manage-fields").addEventListener("click", async () => {
   document.getElementById("fields-dialog-section").textContent = activeSection.name;
-  document.getElementById("fields-dialog-error").hidden = true;
-  document.getElementById("field-form").reset();
+  resetFieldForm();
   renderFieldList();
-  renderTypeExtras();
   openDialog("fields-dialog");
 });
 
@@ -398,13 +519,18 @@ document.getElementById("field-form").addEventListener("submit", async (e) => {
   if (type === "relation") body.options.section_id = Number(document.getElementById("f-relation").value);
 
   try {
-    await api(`/api/sections/${activeSection.id}/fields`, { method: "POST", body: JSON.stringify(body) });
-    document.getElementById("field-form").reset();
-    renderTypeExtras();
-    await reloadSections();
-    renderFieldList();
-    renderTable();
-    await resetForm();
+    if (editingFieldId) {
+      // The key and type are fixed; only label, required and options change.
+      const { name, required, options } = body;
+      await api(`/api/fields/${editingFieldId}`, {
+        method: "PUT",
+        body: JSON.stringify({ name, required, options }),
+      });
+    } else {
+      await api(`/api/sections/${activeSection.id}/fields`, { method: "POST", body: JSON.stringify(body) });
+    }
+    resetFieldForm();
+    await refreshAfterSchemaChange();
   } catch (err) {
     errorEl.textContent = err.message;
     errorEl.hidden = false;
@@ -463,22 +589,7 @@ async function load() {
   document.getElementById("section-body").hidden = false;
   document.getElementById("manage-fields").hidden = !isAdmin();
 
-  // Admins can rename or remove the section they're looking at.
-  if (isAdmin()) {
-    const tab = document.querySelector(`.nav-links a.active`);
-    if (tab) {
-      tab.addEventListener("dblclick", (e) => {
-        e.preventDefault();
-        document.getElementById("s-id").value = activeSection.id;
-        document.getElementById("s-name").value = activeSection.name;
-        document.getElementById("s-icon").value = activeSection.icon;
-        document.getElementById("section-dialog-title").textContent = "Edit section";
-        document.getElementById("delete-section").hidden = false;
-        openDialog("section-dialog");
-      });
-      tab.title = "Double-click to rename or delete this section";
-    }
-  }
+  document.getElementById("edit-section").hidden = !isAdmin();
 
   document.getElementById("f-type").innerHTML = Object.entries(FIELD_TYPE_LABELS)
     .map(([value, label]) => `<option value="${value}">${label}</option>`)
