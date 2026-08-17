@@ -26,7 +26,7 @@ export default function InsightsScreen() {
           setGoals(g);
           setError(null);
         })
-        .catch((err) => setError(err instanceof ApiNotConfiguredError ? "Set up your server in More → Settings first." : err.message));
+        .catch((err) => setError(err instanceof ApiNotConfiguredError ? "Couldn't reach the server. Pull to refresh, or sign out and back in." : err.message));
     }, [])
   );
 

@@ -3,23 +3,10 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Khata — Dashboard</title>
+<title>Khata — Modules</title>
 <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-
-  <div id="lock" class="lock">
-    <div class="lock-card">
-      <p class="eyebrow">Khata</p>
-      <h1>Enter password</h1>
-      <p class="lock-sub">This dashboard shows real spending data, so it's locked with the shared password.</p>
-      <form id="lock-form">
-        <input id="lock-input" type="password" placeholder="Password" autocomplete="current-password" autofocus />
-        <button type="submit">Unlock</button>
-      </form>
-      <p id="lock-error" class="lock-error" hidden>That password didn't work. Try again.</p>
-    </div>
-  </div>
 
   <main id="app" hidden>
     <nav id="navbar" class="navbar"></nav>
@@ -27,56 +14,44 @@
 
       <header class="top">
         <div>
-          <p class="eyebrow">Khata</p>
-          <h1>Dashboard</h1>
-        </div>
-        <div class="month-nav">
-          <button id="prev-month" aria-label="Previous month">‹</button>
-          <span id="month-label" class="mono">—</span>
-          <button id="next-month" aria-label="Next month">›</button>
+          <p class="eyebrow">Your cupboard</p>
+          <h1>Modules</h1>
         </div>
       </header>
 
-      <div id="stat-grid" class="stat-grid"></div>
+      <div id="module-grid" class="module-grid"></div>
 
-      <section class="hero-row">
-        <div class="card hero">
-          <div class="label-sm">Spent this month</div>
-          <div id="total-spent" class="amount-hero">Rs 0</div>
-          <div class="meta">Everything logged this month except savings contributions.</div>
-        </div>
-        <div class="card">
-          <div class="label-sm">Spent by category</div>
-          <div id="category-bars" class="bars"></div>
-        </div>
-      </section>
-
-      <section class="two-col">
-        <div class="card">
-          <div class="label-sm" style="margin-bottom:10px;">Recent transactions</div>
-          <div id="recent-list"></div>
-        </div>
-        <div class="card">
-          <div class="label-sm" style="margin-bottom:10px;">Archives</div>
-          <div id="archive-list"></div>
-        </div>
-      </section>
-
-      <section style="margin-top:18px;">
-        <div class="label-sm" style="margin-bottom:10px;">Budgets — by category, with what's left</div>
-        <div id="budget-list"></div>
-      </section>
-
-      <section style="margin-top:18px;">
-        <div class="label-sm" style="margin-bottom:10px;">Goals — by category, with what's left</div>
-        <div id="goal-list"></div>
-      </section>
-
-      <p class="footnote">Read-only totals — add or edit transactions from the Khata phone app. Manage categories, fixed bills, goals, and budgets from the nav above.</p>
     </div>
   </main>
 
+  <div id="module-dialog" class="dialog-backdrop" hidden>
+    <div class="dialog">
+      <h2 id="dialog-title">Add module</h2>
+      <p id="dialog-error" class="form-error" hidden></p>
+      <form id="module-form">
+        <input type="hidden" id="m-id" />
+        <div class="field-row">
+          <label for="m-name">Module name</label>
+          <input id="m-name" placeholder="TodoList" required />
+        </div>
+        <div class="field-row">
+          <label for="m-description">Description</label>
+          <input id="m-description" placeholder="What lives in this module?" />
+        </div>
+        <div class="field-row">
+          <label for="m-icon">Icon (emoji)</label>
+          <input id="m-icon" placeholder="✅" maxlength="4" />
+        </div>
+        <p class="form-hint">Navigation pages and their fields come next — you'll set those up inside the module.</p>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">Save</button>
+          <button type="button" id="dialog-cancel" class="btn btn-ghost">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
 <script src="common.js"></script>
-<script src="dashboard.js"></script>
+<script src="home.js"></script>
 </body>
 </html>

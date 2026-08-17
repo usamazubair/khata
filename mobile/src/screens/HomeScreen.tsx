@@ -20,7 +20,7 @@ export default function HomeScreen({ navigation }: any) {
       setError(null);
     } catch (err: any) {
       if (err instanceof ApiNotConfiguredError) {
-        setError("Set up your server in More → Settings first.");
+        setError("Couldn't reach the server. Pull to refresh, or sign out and back in.");
       } else {
         setError(err.message || "Couldn't load data.");
       }

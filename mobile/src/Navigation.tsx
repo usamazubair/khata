@@ -1,13 +1,17 @@
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "./theme";
 
+import ModulesScreen from "./screens/ModulesScreen";
+import ModulePlaceholderScreen from "./screens/ModulePlaceholderScreen";
 import HomeScreen from "./screens/HomeScreen";
 import AddScreen from "./screens/AddScreen";
 import TransactionsScreen from "./screens/TransactionsScreen";
 import InsightsScreen from "./screens/InsightsScreen";
 import SettingsScreen from "./screens/SettingsScreen";
 
+const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
 const ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
@@ -18,7 +22,7 @@ const ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   Settings: "settings-outline",
 };
 
-export default function RootNavigator() {
+function KhataTabs() {
   const t = useTheme();
   return (
     <Tab.Navigator
@@ -36,5 +40,27 @@ export default function RootNavigator() {
       <Tab.Screen name="Insights" component={InsightsScreen} />
       <Tab.Screen name="Settings" component={SettingsScreen} />
     </Tab.Navigator>
+  );
+}
+
+export default function RootNavigator() {
+  const t = useTheme();
+  return (
+    <Stack.Navigator
+      screenOptions={{
+        headerStyle: { backgroundColor: t.paper },
+        headerTintColor: t.ink,
+        headerShadowVisible: false,
+        contentStyle: { backgroundColor: t.paper },
+      }}
+    >
+      <Stack.Screen name="Modules" component={ModulesScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="Khata" component={KhataTabs} options={{ title: "Khata" }} />
+      <Stack.Screen
+        name="ModulePlaceholder"
+        component={ModulePlaceholderScreen}
+        options={({ route }: any) => ({ title: route.params?.name || "Module" })}
+      />
+    </Stack.Navigator>
   );
 }

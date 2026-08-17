@@ -1,4 +1,4 @@
-window.khataNavActive = "transactions.html";
+window.khataNav = { module: "khata", active: "transactions.html" };
 
 let filters = { q: "", category_type: "", date_from: "", date_to: "" };
 let debounceTimer = null;

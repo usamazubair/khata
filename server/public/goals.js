@@ -1,4 +1,4 @@
-window.khataNavActive = "goals.html";
+window.khataNav = { module: "khata", active: "goals.html" };
 
 let goals = [];
 let savedCategories = [];

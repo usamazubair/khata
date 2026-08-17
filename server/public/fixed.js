@@ -1,4 +1,4 @@
-window.khataNavActive = "fixed.html";
+window.khataNav = { module: "khata", active: "fixed.html" };
 
 let bills = [];
 let fixedCategories = [];

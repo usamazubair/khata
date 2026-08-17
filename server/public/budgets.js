@@ -1,4 +1,4 @@
-window.khataNavActive = "budgets.html";
+window.khataNav = { module: "khata", active: "budgets.html" };
 
 let budgets = [];
 let budgetCategories = [];

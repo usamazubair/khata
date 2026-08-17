@@ -1,5 +1,16 @@
 export type CategoryType = "expense" | "fixed" | "saved" | "budget";
 
+export type Module = {
+  id: number;
+  name: string;
+  slug: string;
+  description: string;
+  icon: string;
+  kind: "system" | "generic";
+  sort_order: number;
+  active: boolean;
+};
+
 export type Category = {
   id: number;
   name: string;

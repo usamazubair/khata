@@ -1,4 +1,4 @@
-const STORAGE_KEY = "khata_dashboard_key";
+const TOKEN_KEY = "khata_token";
 
 // Light-mode categorical hex (as stored in the DB) -> dark-mode step.
 const DARK_STEP = {
@@ -32,7 +32,8 @@ function escapeHtml(s) {
   return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
-let apiKey = localStorage.getItem(STORAGE_KEY);
+let token = localStorage.getItem(TOKEN_KEY);
+let currentUser = null;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 function looksLikeInfraHiccup(res) {
@@ -43,14 +44,21 @@ async function api(path, options = {}, attempt = 1) {
   const res = await fetch(path, {
     ...options,
     cache: "no-store",
-    headers: { "x-api-key": apiKey, "Content-Type": "application/json", ...options.headers },
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...options.headers,
+    },
   });
   if (res.status === 401) {
-    localStorage.removeItem(STORAGE_KEY);
-    apiKey = null;
-    showLock(true);
+    localStorage.removeItem(TOKEN_KEY);
+    token = null;
+    currentUser = null;
+    showLogin("Your session expired. Sign in again.");
     throw new Error("unauthorized");
   }
+  // A sleeping free-tier host can 404 with a plain-text body for a beat while
+  // it wakes up. Our routes always answer JSON, so retry that briefly.
   if (!res.ok && looksLikeInfraHiccup(res) && attempt < 3) {
     await sleep(attempt * 1500);
     return api(path, options, attempt + 1);
@@ -67,26 +75,98 @@ async function api(path, options = {}, attempt = 1) {
   return res.json();
 }
 
-const lockEl = document.getElementById("lock");
-const appEl = document.getElementById("app");
-const lockForm = document.getElementById("lock-form");
-const lockInput = document.getElementById("lock-input");
-const lockError = document.getElementById("lock-error");
+/* ── login overlay ─────────────────────────────────────────────────────────
+   Injected here rather than repeated in every page's HTML. */
+let loginEl = null;
+let appEl = null;
 
-function showLock(withError) {
-  lockEl.hidden = false;
-  appEl.hidden = true;
-  lockError.hidden = !withError;
-  lockInput.value = "";
-  lockInput.focus();
+function buildLogin() {
+  loginEl = document.createElement("div");
+  loginEl.className = "lock";
+  loginEl.hidden = true;
+  loginEl.innerHTML = `
+    <div class="lock-card">
+      <p class="eyebrow">Khata</p>
+      <h1>Sign in</h1>
+      <p class="lock-sub">Your personal cupboard — expenses and whatever else you keep here.</p>
+      <form id="login-form">
+        <input id="login-email" type="email" placeholder="Email" autocomplete="username" required />
+        <input id="login-password" type="password" placeholder="Password" autocomplete="current-password" required />
+        <button type="submit" id="login-submit">Sign in</button>
+      </form>
+      <p id="login-error" class="lock-error" hidden></p>
+    </div>
+  `;
+  document.body.prepend(loginEl);
+
+  loginEl.querySelector("#login-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const errorEl = loginEl.querySelector("#login-error");
+    const submitBtn = loginEl.querySelector("#login-submit");
+    errorEl.hidden = true;
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Signing in…";
+    try {
+      const body = JSON.stringify({
+        email: loginEl.querySelector("#login-email").value.trim(),
+        password: loginEl.querySelector("#login-password").value,
+      });
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Sign in failed.");
+      token = data.token;
+      currentUser = data.user;
+      localStorage.setItem(TOKEN_KEY, token);
+      loginEl.querySelector("#login-password").value = "";
+      await startApp();
+    } catch (err) {
+      errorEl.textContent = err.message;
+      errorEl.hidden = false;
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Sign in";
+    }
+  });
 }
+
+function showLogin(message) {
+  if (!loginEl) buildLogin();
+  loginEl.hidden = false;
+  if (appEl) appEl.hidden = true;
+  const errorEl = loginEl.querySelector("#login-error");
+  if (message) {
+    errorEl.textContent = message;
+    errorEl.hidden = false;
+  } else {
+    errorEl.hidden = true;
+  }
+  loginEl.querySelector("#login-email").focus();
+}
+
 function showApp() {
-  lockEl.hidden = true;
+  if (loginEl) loginEl.hidden = true;
   appEl.hidden = false;
 }
 
-const NAV_LINKS = [
-  { href: "index.html", label: "Dashboard" },
+function logout() {
+  localStorage.removeItem(TOKEN_KEY);
+  token = null;
+  currentUser = null;
+  showLogin();
+}
+
+/* ── navigation ────────────────────────────────────────────────────────────
+   Pages set window.khataNav to one of:
+     { home: true }
+     { module: "khata", active: "transactions.html" }
+     { admin: true, active: "users.html" }                                  */
+
+const KHATA_NAV = [
+  { href: "khata.html", label: "Overview" },
   { href: "transactions.html", label: "Transactions" },
   { href: "categories.html", label: "Categories" },
   { href: "fixed.html", label: "Fixed Transactions" },
@@ -94,47 +174,65 @@ const NAV_LINKS = [
   { href: "budgets.html", label: "Budgets" },
 ];
 
-function renderNav(active) {
+function renderNav() {
   const el = document.getElementById("navbar");
   if (!el) return;
+  const nav = window.khataNav || { home: true };
+
+  let left = `<a class="nav-logo" href="index.html">📒 Khata</a>`;
+  let links = "";
+
+  if (nav.module === "khata") {
+    left = `<a class="nav-back" href="index.html">‹ Modules</a><span class="nav-module">📒 Khata</span>`;
+    links = KHATA_NAV.map(
+      (l) => `<a href="${l.href}" class="${l.href === nav.active ? "active" : ""}">${l.label}</a>`
+    ).join("");
+  } else if (nav.module) {
+    // Generic module — its own sections become links once they exist.
+    left = `<a class="nav-back" href="index.html">‹ Modules</a><span class="nav-module" id="nav-module-name"></span>`;
+  } else if (nav.admin) {
+    left = `<a class="nav-back" href="index.html">‹ Modules</a><span class="nav-module">Settings</span>`;
+  }
+
+  const adminLink =
+    currentUser?.role === "admin" && !nav.admin
+      ? `<a class="nav-user-link" href="users.html">Users</a>`
+      : "";
+
   el.innerHTML = `
-    <a class="nav-logo" href="index.html">📒 Khata</a>
-    <div class="nav-links">
-      ${NAV_LINKS.map((l) => `<a href="${l.href}" class="${l.href === active ? "active" : ""}">${l.label}</a>`).join("")}
+    ${left}
+    <div class="nav-links">${links}</div>
+    <div class="nav-right">
+      ${adminLink}
+      <span class="nav-whoami" title="${escapeHtml(currentUser?.email || "")}">${escapeHtml(currentUser?.name || currentUser?.email || "")}</span>
+      <button id="logout-btn" class="nav-logout">Logout</button>
     </div>
-    <button id="logout-btn" class="nav-logout">Logout</button>
   `;
-  document.getElementById("logout-btn").addEventListener("click", () => {
-    localStorage.removeItem(STORAGE_KEY);
-    apiKey = null;
-    showLock(false);
-  });
+  document.getElementById("logout-btn").addEventListener("click", logout);
 }
 
-lockForm.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const candidate = lockInput.value.trim();
-  if (!candidate) return;
-  apiKey = candidate;
+// Only an auth failure sends you back to the login screen — if the page's own
+// data fails to load, stay in the app and let the page show its empty state.
+async function startApp() {
+  currentUser = await api("/api/auth/me");
+  renderNav();
   try {
     await window.khataInit();
-    localStorage.setItem(STORAGE_KEY, apiKey);
-    showApp();
   } catch (err) {
-    apiKey = null;
-    lockError.hidden = false;
+    if (err.message !== "unauthorized") console.error("Couldn't load this page:", err);
   }
-});
+  showApp();
+}
 
 // Each page defines window.khataInit (loads + renders its own data) and
-// window.khataNavActive (which nav link to highlight), then calls khataBoot().
+// window.khataNav (which nav to show), then calls khataBoot().
 async function khataBoot() {
-  renderNav(window.khataNavActive);
-  if (!apiKey) return showLock(false);
+  appEl = document.getElementById("app");
+  buildLogin();
+  if (!token) return showLogin();
   try {
-    await window.khataInit();
-    showApp();
+    await startApp();
   } catch (err) {
-    showLock(true);
+    if (err.message !== "unauthorized") showLogin(err.message);
   }
 }

@@ -2,8 +2,11 @@ require("dotenv").config();
 const path = require("path");
 const express = require("express");
 const cors = require("cors");
-const { requireApiKey } = require("./middleware/auth");
+const { requireAuth, bootstrapAdmin } = require("./auth");
 
+const auth = require("./routes/auth");
+const modules = require("./routes/modules");
+const users = require("./routes/users");
 const categories = require("./routes/categories");
 const transactions = require("./routes/transactions");
 const fixedExpenses = require("./routes/fixedExpenses");
@@ -17,7 +20,11 @@ app.use(express.json());
 
 app.get("/api/health", (req, res) => res.json({ ok: true }));
 
-app.use("/api", requireApiKey);
+// Login lives outside the auth wall; everything below it needs a valid token.
+app.use("/api/auth", auth);
+app.use("/api", requireAuth);
+app.use("/api/modules", modules);
+app.use("/api/users", users);
 app.use("/api/categories", categories);
 app.use("/api/transactions", transactions);
 app.use("/api/fixed-expenses", fixedExpenses);
@@ -25,7 +32,7 @@ app.use("/api/budgets", budgets);
 app.use("/api/goals", goals);
 app.use("/api/summary", summary);
 
-// Read-only web dashboard (static files, password-gated client-side against API_KEY).
+// Web dashboard (static files; the client holds a JWT from /api/auth/login).
 app.use(express.static(path.join(__dirname, "..", "public")));
 
 app.use((err, req, res, next) => {
@@ -34,7 +41,14 @@ app.use((err, req, res, next) => {
 });
 
 const port = process.env.PORT || 4000;
-app.listen(port, () => console.log(`Khata API listening on :${port}`));
+app.listen(port, async () => {
+  console.log(`Khata API listening on :${port}`);
+  try {
+    await bootstrapAdmin();
+  } catch (err) {
+    console.error("Admin bootstrap failed:", err.message);
+  }
+});
 
 // Last line of defense: without this, an uncaught rejection anywhere
 // (a route someone forgot to wrap, a library callback, etc.) crashes the

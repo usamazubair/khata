@@ -38,7 +38,7 @@ export default function TransactionsScreen() {
       setItems(rows);
       setError(null);
     } catch (err: any) {
-      setError(err instanceof ApiNotConfiguredError ? "Set up your server in More → Settings first." : err.message);
+      setError(err instanceof ApiNotConfiguredError ? "Couldn't reach the server. Pull to refresh, or sign out and back in." : err.message);
     }
   }, []);
 

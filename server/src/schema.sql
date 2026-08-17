@@ -8,11 +8,54 @@
 -- "expense" is everyday spending. Goals and budgets don't store their own
 -- progress — it's always derived by summing transactions in their category.
 
+DROP TABLE IF EXISTS module_access CASCADE;
+DROP TABLE IF EXISTS modules CASCADE;
+DROP TABLE IF EXISTS users CASCADE;
 DROP TABLE IF EXISTS transactions CASCADE;
 DROP TABLE IF EXISTS fixed_expenses CASCADE;
 DROP TABLE IF EXISTS budgets CASCADE;
 DROP TABLE IF EXISTS goals CASCADE;
 DROP TABLE IF EXISTS categories CASCADE;
+
+-- ── Accounts and the module registry ──────────────────────────────────────
+-- Khata is module #1 rather than the whole app; more modules get added from
+-- the dashboard.
+
+CREATE TABLE users (
+  id            SERIAL PRIMARY KEY,
+  email         TEXT NOT NULL UNIQUE,
+  password_hash TEXT NOT NULL,
+  name          TEXT NOT NULL DEFAULT '',
+  role          TEXT NOT NULL DEFAULT 'member' CHECK (role IN ('admin', 'member')),
+  active        BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- kind='system' modules are hand-built pages (Khata). kind='generic' ones are
+-- defined from the dashboard and rendered from their stored schema.
+CREATE TABLE modules (
+  id          SERIAL PRIMARY KEY,
+  name        TEXT NOT NULL,
+  slug        TEXT NOT NULL UNIQUE,
+  description TEXT NOT NULL DEFAULT '',
+  icon        TEXT NOT NULL DEFAULT '📦',
+  kind        TEXT NOT NULL DEFAULT 'generic' CHECK (kind IN ('system', 'generic')),
+  sort_order  INT NOT NULL DEFAULT 0,
+  active      BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Admins implicitly see every module; members see only what's granted here.
+CREATE TABLE module_access (
+  user_id   INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  module_id INT NOT NULL REFERENCES modules(id) ON DELETE CASCADE,
+  PRIMARY KEY (user_id, module_id)
+);
+
+INSERT INTO modules (name, slug, description, icon, kind, sort_order) VALUES
+  ('Khata', 'khata', 'Expenses, budgets, goals and fixed bills', '📒', 'system', 1);
+
+-- ── Khata module tables ───────────────────────────────────────────────────
 
 CREATE TABLE categories (
   id         SERIAL PRIMARY KEY,

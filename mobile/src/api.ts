@@ -1,19 +1,30 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const URL_KEY = "khata_api_url";
-const KEY_KEY = "khata_api_key";
+const TOKEN_KEY = "khata_token";
 
-export async function getServerConfig() {
-  const [url, key] = await Promise.all([AsyncStorage.getItem(URL_KEY), AsyncStorage.getItem(KEY_KEY)]);
-  return { url: url || "", key: key || "" };
+export async function getServerUrl() {
+  return (await AsyncStorage.getItem(URL_KEY)) || "";
 }
 
-export async function setServerConfig(url: string, key: string) {
+export async function setServerUrl(url: string) {
   await AsyncStorage.setItem(URL_KEY, url.trim().replace(/\/+$/, ""));
-  await AsyncStorage.setItem(KEY_KEY, key.trim());
+}
+
+export async function getToken() {
+  return (await AsyncStorage.getItem(TOKEN_KEY)) || "";
+}
+
+export async function setToken(token: string) {
+  await AsyncStorage.setItem(TOKEN_KEY, token);
+}
+
+export async function clearToken() {
+  await AsyncStorage.removeItem(TOKEN_KEY);
 }
 
 export class ApiNotConfiguredError extends Error {}
+export class UnauthorizedError extends Error {}
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -26,19 +37,31 @@ function looksLikeInfraHiccup(res: Response) {
   return !res.headers.get("content-type")?.includes("application/json");
 }
 
+// Set by App.tsx so an expired session can bounce straight back to login.
+let onUnauthorized: (() => void) | null = null;
+export function setUnauthorizedHandler(fn: () => void) {
+  onUnauthorized = fn;
+}
+
 async function request(path: string, options: RequestInit = {}, attempt = 1): Promise<any> {
-  const { url, key } = await getServerConfig();
-  if (!url || !key) throw new ApiNotConfiguredError("Set the server URL and key in Settings first.");
+  const [url, token] = await Promise.all([getServerUrl(), getToken()]);
+  if (!url) throw new ApiNotConfiguredError("Set the server address first.");
 
   const res = await fetch(`${url}${path}`, {
     ...options,
     cache: "no-store",
     headers: {
       "Content-Type": "application/json",
-      "x-api-key": key,
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...options.headers,
     },
   });
+
+  if (res.status === 401) {
+    await clearToken();
+    onUnauthorized?.();
+    throw new UnauthorizedError("Your session expired. Sign in again.");
+  }
 
   if (!res.ok && looksLikeInfraHiccup(res) && attempt < 3) {
     await sleep(attempt * 1500);
@@ -60,11 +83,32 @@ async function request(path: string, options: RequestInit = {}, attempt = 1): Pr
 export const api = {
   health: (url: string) => fetch(`${url}/api/health`).then((r) => r.ok),
 
+  // Login is the one call that runs before a token exists.
+  login: async (url: string, email: string, password: string) => {
+    const res = await fetch(`${url.trim().replace(/\/+$/, "")}/api/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: email.trim(), password }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || "Sign in failed.");
+    return data as { token: string; user: User };
+  },
+
+  me: () => request("/api/auth/me"),
+  modules: () => request("/api/modules"),
+
+  changePassword: (current_password: string, new_password: string) =>
+    request("/api/auth/change-password", {
+      method: "POST",
+      body: JSON.stringify({ current_password, new_password }),
+    }),
+
   // Categories, fixed bills, goals, and budgets are managed from the web
-  // dashboard. The app only reads categories (to log transactions against
-  // them) and reads budgets/goals (to show progress on Insights).
+  // dashboard. The app only reads them; it reads+writes transactions.
   categories: {
-    list: (type?: string) => request(`/api/categories?${new URLSearchParams({ ...(type ? { type } : {}), active: "true" }).toString()}`),
+    list: (type?: string) =>
+      request(`/api/categories?${new URLSearchParams({ ...(type ? { type } : {}), active: "true" }).toString()}`),
   },
 
   transactions: {
@@ -84,6 +128,14 @@ export const api = {
   },
 
   summary: (month: string) => request(`/api/summary?month=${month}`),
+};
+
+export type User = {
+  id: number;
+  email: string;
+  name: string;
+  role: "admin" | "member";
+  active: boolean;
 };
 
 export function currentMonth() {

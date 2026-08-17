@@ -48,7 +48,7 @@ export default function AddScreen({ navigation }: any) {
           setError(null);
           setCategoryId((prev) => prev ?? cats.find((c) => c.type === "expense")?.id ?? cats[0]?.id ?? null);
         })
-        .catch((err) => setError(err instanceof ApiNotConfiguredError ? "Set up your server in More → Settings first." : err.message));
+        .catch((err) => setError(err instanceof ApiNotConfiguredError ? "Couldn't reach the server. Pull to refresh, or sign out and back in." : err.message));
     }, [])
   );
 
