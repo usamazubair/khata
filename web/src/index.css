@@ -20,7 +20,6 @@
   --accent-2: #ff6a2b;
   --accent-3: #7b3ff2;
   --shadow-tint: 12 21 38;
-  --glow: 47 75 255;
 
   --good: #00996b;
   --warning: #e08700;
@@ -52,7 +51,6 @@
     --accent-2: #ff824a;
     --accent-3: #9a6bff;
     --shadow-tint: 0 0 0;
-    --glow: 91 124 255;
 
     --good: #21c98e;
     --warning: #ffb32e;
@@ -145,18 +143,6 @@
 }
 
 @layer components {
-  /* The one gradient the whole app shares — headings, primary buttons and
-     progress fills all pull from it so the colour never drifts. */
-  .grad {
-    background-image: linear-gradient(115deg, var(--accent) 0%, var(--accent-3) 52%, var(--accent-2) 100%);
-  }
-  .grad-text {
-    background-image: linear-gradient(115deg, var(--accent) 0%, var(--accent-3) 52%, var(--accent-2) 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-  }
-
   .field-label {
     @apply mb-1.5 block font-mono text-[10px] font-medium tracking-[0.08em] text-muted uppercase;
   }

@@ -35,10 +35,9 @@ export function CrudLayout({
         variants={riseItem}
         initial="hidden"
         animate="show"
-        className="surface relative min-w-0 overflow-hidden p-5 lg:sticky lg:top-20"
+        className="surface min-w-0 p-5 lg:sticky lg:top-20"
       >
-        <span aria-hidden className="grad absolute inset-x-0 top-0 h-[3px]" />
-        <h2 className="mt-1 mb-4 font-display text-lg font-bold">{formTitle}</h2>
+        <h2 className="mb-4 font-display text-lg font-bold">{formTitle}</h2>
         {form}
       </motion.div>
     </div>

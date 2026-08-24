@@ -20,12 +20,9 @@ export function PageHeader({
     <header className="mb-7 flex flex-wrap items-end justify-between gap-3">
       <div>
         {eyebrow && (
-          <p className="mb-2 flex items-center gap-2 font-mono text-[11px] font-medium tracking-[0.12em] text-muted uppercase">
-            <span className="grad h-3 w-1 rounded-full" />
-            {eyebrow}
-          </p>
+          <p className="mb-2 font-mono text-[11px] font-medium tracking-[0.12em] text-muted uppercase">{eyebrow}</p>
         )}
-        <h1 className="grad-text font-display text-[34px] leading-[1.1] font-extrabold">{title}</h1>
+        <h1 className="font-display text-[34px] leading-[1.1] font-extrabold">{title}</h1>
       </div>
       {children && <div className="flex items-center gap-2">{children}</div>}
     </header>
@@ -85,18 +82,9 @@ export function StatTile({
   sub?: ReactNode;
   accent?: "good" | "critical";
 }) {
-  // A coloured hairline along the top ties each tile to what it reports.
-  const bar =
-    accent === "good"
-      ? "bg-good"
-      : accent === "critical"
-        ? "bg-critical"
-        : "grad";
-
   return (
-    <motion.div variants={riseItem} className="surface relative overflow-hidden px-4 py-3.5">
-      <span aria-hidden className={cx("absolute inset-x-0 top-0 h-[3px]", bar)} />
-      <div className="mt-1 font-mono text-[10px] tracking-[0.08em] text-muted uppercase">{label}</div>
+    <motion.div variants={riseItem} className="surface px-4 py-3.5">
+      <div className="font-mono text-[10px] tracking-[0.08em] text-muted uppercase">{label}</div>
       <div
         className={cx(
           "num mt-1 text-[23px] font-semibold",
@@ -118,7 +106,7 @@ export function ProgressBar({ pct, color }: { pct: number; color?: string }) {
   return (
     <div className="h-2 overflow-hidden rounded-full bg-page2">
       <motion.div
-        className={cx("h-full rounded-full", !color && "grad")}
+        className={cx("h-full rounded-full", !color && "bg-accent")}
         style={color ? { backgroundColor: color } : undefined}
         initial={{ width: 0 }}
         animate={{ width: `${clamped}%` }}
@@ -162,7 +150,7 @@ export function Button({
   ...rest
 }: React.ComponentProps<typeof motion.button> & { variant?: "primary" | "ghost" | "danger" }) {
   const styles = {
-    primary: "grad text-white shadow-[0_6px_20px_-8px_rgb(var(--glow)/0.9)] hover:brightness-110",
+    primary: "bg-accent text-accent-ink hover:brightness-110",
     ghost: "border border-rule text-muted hover:text-ink hover:border-accent/60 hover:bg-page2",
     danger: "border border-critical/60 text-critical hover:bg-critical/10",
   }[variant];
@@ -247,7 +235,7 @@ export function ActiveToggle({
       <span
         className={cx(
           "flex h-[19px] w-[34px] shrink-0 items-center rounded-full p-0.5 transition-colors",
-          active ? "grad" : "bg-rule"
+          active ? "bg-accent" : "bg-rule"
         )}
       >
         <motion.span
@@ -367,14 +355,14 @@ export function FilterChips<T extends string>({
             {on && (
               <motion.span
                 layoutId={`chip-${id}`}
-                className="grad absolute inset-0 rounded-full shadow-[0_6px_18px_-10px_rgb(var(--glow)/0.9)]"
+                className="absolute inset-0 rounded-full bg-accent"
                 transition={spring}
               />
             )}
-            <span className={cx("relative flex items-center gap-1.5", on && "font-semibold text-white")}>
+            <span className={cx("relative flex items-center gap-1.5", on && "font-semibold text-accent-ink")}>
               {o.label}
               {o.count !== undefined && (
-                <span className={cx("num text-[10.5px]", on ? "text-white/75" : "text-muted")}>{o.count}</span>
+                <span className={cx("num text-[10.5px]", on ? "text-accent-ink/75" : "text-muted")}>{o.count}</span>
               )}
             </span>
           </button>
@@ -438,13 +426,13 @@ export function DayPicker({ value, onChange }: { value: number; onChange: (d: nu
               onClick={() => onChange(d)}
               className={cx(
                 "num relative aspect-square cursor-pointer rounded-md text-[12px] transition-colors",
-                on ? "text-white" : d > 28 ? "text-muted/70 hover:bg-page2" : "text-ink hover:bg-page2"
+                on ? "text-accent-ink" : d > 28 ? "text-muted/70 hover:bg-page2" : "text-ink hover:bg-page2"
               )}
             >
               {on && (
                 <motion.span
                   layoutId="dayPicker"
-                  className="grad absolute inset-0 rounded-md shadow-[0_4px_14px_-6px_rgb(var(--glow)/0.9)]"
+                  className="absolute inset-0 rounded-md bg-accent"
                   transition={spring}
                 />
               )}

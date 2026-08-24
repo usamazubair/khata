@@ -60,7 +60,7 @@ export default function Login() {
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.16, duration: 0.4, ease }}
-          className="grad-text text-center font-display text-[32px] font-extrabold"
+          className="text-center font-display text-[32px] font-extrabold"
         >
           Sign in
         </motion.h1>

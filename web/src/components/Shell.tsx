@@ -61,7 +61,6 @@ export function Navbar({ module, admin }: { module?: ModuleKey; admin?: boolean 
 
   return (
     <nav className="sticky top-0 z-20 flex items-center gap-1.5 border-b border-rule bg-page/80 px-6 py-3 backdrop-blur-xl">
-      <span aria-hidden className="grad absolute inset-x-0 top-0 h-[2px]" />
       {mod || admin ? (
         <>
           <Link
@@ -76,7 +75,7 @@ export function Navbar({ module, admin }: { module?: ModuleKey; admin?: boolean 
         </>
       ) : (
         <Link to="/" className="mr-4 shrink-0 font-display text-[17px] font-extrabold tracking-tight">
-          📒 <span className="grad-text">Khata</span>
+          📒 Khata
         </Link>
       )}
 
