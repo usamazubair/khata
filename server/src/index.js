@@ -1,4 +1,5 @@
 require("dotenv").config();
+const fs = require("fs");
 const path = require("path");
 const express = require("express");
 const cors = require("cors");
@@ -55,7 +56,23 @@ app.use("/api", (req, res) => res.status(404).json({ error: "Not found." }));
 
 // Everything else is a client-side route, so serve the app shell and let the
 // router decide — otherwise refreshing /workout/sessions/3 would 404.
-app.get(/.*/, (req, res) => res.sendFile(path.join(publicDir, "index.html")));
+const appShell = path.join(publicDir, "index.html");
+app.get(/.*/, (req, res) => {
+  // Without this, a deploy that skipped the frontend build fails as an opaque
+  // 500. Name the actual problem instead.
+  if (!fs.existsSync(appShell)) {
+    return res
+      .status(503)
+      .type("html")
+      .send(
+        `<h1>Web app not built</h1>
+         <p>The API is running, but <code>server/public</code> has no build in it.</p>
+         <p>Run <code>npm run build</code> from <code>server/</code>, or set your host's
+         build command to <code>npm install &amp;&amp; npm run build</code>.</p>`
+      );
+  }
+  res.sendFile(appShell);
+});
 
 app.use((err, req, res, next) => {
   console.error(err);
