@@ -1,0 +1,149 @@
+@import "tailwindcss";
+
+/* The palette lives in plain custom properties so it can swap for dark mode,
+   then gets exposed to Tailwind via `@theme inline` — that keeps `bg-paper`,
+   `text-ink` etc. working in both modes without a `dark:` prefix everywhere. */
+:root {
+  --paper: #f2ecdd;
+  --page: #fbf8f0;
+  --page-2: #e8dfc7;
+  --rule: #d6c9a8;
+  --ink: #241c15;
+  --ink-muted: #6e6250;
+  --accent: #7a2331;
+  --accent-ink: #fbf8f0;
+  --accent-2: #c79a44;
+  --shadow-tint: 36 28 21;
+
+  --good: #0ca30c;
+  --warning: #fab219;
+  --critical: #d03b3b;
+
+  /* Categorical series, light steps (validated for contrast on paper). */
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --series-4: #eda100;
+  --series-5: #e87ba4;
+  --series-6: #008300;
+  --series-7: #4a3aa7;
+  --series-8: #e34948;
+
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #1c1712;
+    --page: #241d16;
+    --page-2: #2e251a;
+    --rule: #3a2f22;
+    --ink: #ede6d6;
+    --ink-muted: #a89a82;
+    --accent: #e08a99;
+    --accent-ink: #241d16;
+    --accent-2: #d9a752;
+    --shadow-tint: 0 0 0;
+
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --series-3: #199e70;
+    --series-4: #c98500;
+    --series-5: #d55181;
+    --series-6: #008300;
+    --series-7: #9085e9;
+    --series-8: #e66767;
+
+    color-scheme: dark;
+  }
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-page: var(--page);
+  --color-page2: var(--page-2);
+  --color-rule: var(--rule);
+  --color-ink: var(--ink);
+  --color-muted: var(--ink-muted);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent2: var(--accent-2);
+  --color-good: var(--good);
+  --color-warning: var(--warning);
+  --color-critical: var(--critical);
+
+  --color-series-1: var(--series-1);
+  --color-series-2: var(--series-2);
+  --color-series-3: var(--series-3);
+  --color-series-4: var(--series-4);
+  --color-series-5: var(--series-5);
+  --color-series-6: var(--series-6);
+  --color-series-7: var(--series-7);
+  --color-series-8: var(--series-8);
+
+  --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", monospace;
+}
+
+@layer base {
+  body {
+    background-color: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::selection {
+    background: var(--accent);
+    color: var(--accent-ink);
+  }
+
+  /* Motion respects this via useReducedMotion; this covers CSS transitions
+     and anything animating outside a motion component. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+  .field-label {
+    @apply mb-1.5 block font-mono text-[10px] tracking-[0.06em] text-muted uppercase;
+  }
+  .field-input {
+    @apply w-full rounded-lg border border-rule bg-paper px-3 py-2.5 text-sm text-ink
+           outline-none transition-colors placeholder:text-muted/70
+           focus:border-accent focus:ring-2 focus:ring-accent/20;
+  }
+  .table-head {
+    @apply px-4 py-3 text-left font-mono text-[10px] font-medium tracking-[0.05em] text-muted uppercase;
+  }
+  .table-cell {
+    @apply px-4 py-3 align-middle text-[13px];
+  }
+  .num {
+    @apply font-mono tabular-nums;
+  }
+}
+
+/* Thin, unobtrusive scrollbars so overflow areas don't shout. */
+@supports selector(::-webkit-scrollbar) {
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--rule);
+    border-radius: 99px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}

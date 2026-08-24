@@ -8,7 +8,8 @@
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
     "migrate": "node src/migrate.js",
-    "seed-demo": "node src/seed-demo.js"
+    "seed-demo": "node src/seed-demo.js",
+    "build": "cd ../web && npm ci && npm run build"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

@@ -44,8 +44,18 @@ const workoutModule = requireModule("workout");
 app.use("/api/exercises", workoutModule, exercises);
 app.use("/api/workouts", workoutModule, workouts);
 
-// Web dashboard (static files; the client holds a JWT from /api/auth/login).
-app.use(express.static(path.join(__dirname, "..", "public")));
+// Web dashboard: the built React app (Vite outputs here). The client holds a
+// JWT from /api/auth/login.
+const publicDir = path.join(__dirname, "..", "public");
+app.use(express.static(publicDir));
+
+// An unmatched /api path is a genuine 404 — answer in JSON rather than handing
+// back the SPA's HTML, which would confuse any client parsing the response.
+app.use("/api", (req, res) => res.status(404).json({ error: "Not found." }));
+
+// Everything else is a client-side route, so serve the app shell and let the
+// router decide — otherwise refreshing /workout/sessions/3 would 404.
+app.get(/.*/, (req, res) => res.sendFile(path.join(publicDir, "index.html")));
 
 app.use((err, req, res, next) => {
   console.error(err);
