@@ -141,6 +141,11 @@ CREATE TABLE exercises (
   notes        TEXT NOT NULL DEFAULT '',
   sort_order   INT NOT NULL DEFAULT 0,
   active       BOOLEAN NOT NULL DEFAULT TRUE,
+  -- A demo image or short clip; the file lives on Cloudinary, we keep the
+  -- delivery URL plus the public_id needed to replace or delete it.
+  media_url       TEXT,
+  media_public_id TEXT,
+  media_type      TEXT CHECK (media_type IS NULL OR media_type IN ('image', 'video')),
   created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 

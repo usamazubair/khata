@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
+import { ImageOff } from "lucide-react";
 import { del, get, post, put } from "@/lib/api";
 import { rowItem } from "@/lib/motion";
 import { Navbar, Page } from "@/components/Shell";
@@ -18,12 +19,14 @@ import {
   cx,
 } from "@/components/ui";
 import type { Exercise } from "@/lib/types";
+import { MediaUpload, type MediaValue } from "@/components/MediaUpload";
 
 export default function Exercises() {
   const [rows, setRows] = useState<Exercise[]>([]);
   const [q, setQ] = useState("");
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState({ name: "", muscle_group: "", equipment: "", notes: "" });
+  const [media, setMedia] = useState<MediaValue>({ media_url: null, media_public_id: null, media_type: null });
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -41,6 +44,7 @@ export default function Exercises() {
   function reset() {
     setEditingId(null);
     setForm({ name: "", muscle_group: "", equipment: "", notes: "" });
+    setMedia({ media_url: null, media_public_id: null, media_type: null });
     setError(null);
   }
 
@@ -52,6 +56,7 @@ export default function Exercises() {
       muscle_group: form.muscle_group.trim(),
       equipment: form.equipment.trim(),
       notes: form.notes.trim(),
+      ...media,
     };
     if (!body.name) return;
     try {
@@ -92,6 +97,7 @@ export default function Exercises() {
             <TableShell
               head={
                 <>
+                  <th className="table-head">Demo</th>
                   <th className="table-head">Name</th>
                   <th className="table-head">Muscle group</th>
                   <th className="table-head">Equipment</th>
@@ -109,6 +115,19 @@ export default function Exercises() {
                     layout
                     className={cx("border-b border-rule last:border-0", !x.active && "opacity-55")}
                   >
+                    <td className="table-cell">
+                      {x.media_url ? (
+                        x.media_type === "video" ? (
+                          <video src={x.media_url} className="size-11 rounded-lg object-cover" muted loop autoPlay playsInline />
+                        ) : (
+                          <img src={x.media_url} alt="" className="size-11 rounded-lg object-cover" />
+                        )
+                      ) : (
+                        <span className="flex size-11 items-center justify-center rounded-lg border border-dashed border-rule text-muted">
+                          <ImageOff size={14} />
+                        </span>
+                      )}
+                    </td>
                     <td className="table-cell">{x.name}</td>
                     <td className="table-cell text-muted">{x.muscle_group || "—"}</td>
                     <td className="table-cell text-muted">{x.equipment || "—"}</td>
@@ -125,6 +144,11 @@ export default function Exercises() {
                               muscle_group: x.muscle_group ?? "",
                               equipment: x.equipment ?? "",
                               notes: x.notes ?? "",
+                            });
+                            setMedia({
+                              media_url: x.media_url,
+                              media_public_id: x.media_public_id,
+                              media_type: x.media_type,
                             });
                           }}
                         >
@@ -146,7 +170,7 @@ export default function Exercises() {
               </AnimatePresence>
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="table-cell text-muted">
+                  <td colSpan={6} className="table-cell text-muted">
                     {rows.length ? "Nothing matches your search." : "No exercises yet."}
                   </td>
                 </tr>
@@ -181,6 +205,9 @@ export default function Exercises() {
                   />
                 </Field>
               </div>
+              <Field label="Demo photo or clip">
+                <MediaUpload value={media} onChange={setMedia} />
+              </Field>
               <Field label="Notes">
                 <TextArea
                   value={form.notes}

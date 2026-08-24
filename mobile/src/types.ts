@@ -86,6 +86,9 @@ export type Exercise = {
   notes: string;
   sort_order: number;
   active: boolean;
+  media_url: string | null;
+  media_public_id: string | null;
+  media_type: "image" | "video" | null;
 };
 
 export type WorkoutSet = {

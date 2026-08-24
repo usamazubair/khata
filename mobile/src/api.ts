@@ -129,6 +129,9 @@ export const api = {
 
   exercises: {
     list: (activeOnly = true) => request(`/api/exercises${activeOnly ? "?active=true" : ""}`),
+    update: (id: number, body: object) => request(`/api/exercises/${id}`, { method: "PUT", body: JSON.stringify(body) }),
+    uploadSignature: (resource_type: "image" | "video") =>
+      request("/api/exercises/upload-signature", { method: "POST", body: JSON.stringify({ resource_type }) }),
   },
 
   workouts: {
