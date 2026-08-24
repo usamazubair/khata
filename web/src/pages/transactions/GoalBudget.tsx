@@ -6,6 +6,7 @@ import { rowItem } from "@/lib/motion";
 import { Navbar, Page } from "@/components/Shell";
 import { CrudLayout } from "@/components/CrudLayout";
 import {
+  ActiveField,
   ActiveToggle,
   Button,
   Dot,
@@ -55,7 +56,7 @@ export default function GoalBudget({ kind }: { kind: Kind }) {
   const [cats, setCats] = useState<Category[]>([]);
   const [q, setQ] = useState("");
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [form, setForm] = useState({ name: "", description: "", price: "", target_date: "", category_id: "" });
+  const [form, setForm] = useState({ name: "", description: "", price: "", target_date: "", category_id: "", active: true });
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -79,7 +80,7 @@ export default function GoalBudget({ kind }: { kind: Kind }) {
 
   function reset() {
     setEditingId(null);
-    setForm({ name: "", description: "", price: "", target_date: "", category_id: String(cats[0]?.id ?? "") });
+    setForm({ name: "", description: "", price: "", target_date: "", category_id: String(cats[0]?.id ?? ""), active: true });
     setError(null);
   }
 
@@ -91,6 +92,7 @@ export default function GoalBudget({ kind }: { kind: Kind }) {
       price: String(Number(r.price)),
       target_date: r.target_date ? r.target_date.slice(0, 10) : "",
       category_id: String(r.category_id),
+      active: r.active,
     });
     setError(null);
   }
@@ -103,6 +105,7 @@ export default function GoalBudget({ kind }: { kind: Kind }) {
       description: form.description.trim(),
       price: Number(form.price),
       category_id: Number(form.category_id),
+      active: form.active,
     };
     if (cfg.hasTargetDate) body.target_date = form.target_date || null;
     if (!body.name || !body.category_id) return;
@@ -279,6 +282,12 @@ export default function GoalBudget({ kind }: { kind: Kind }) {
                   ))}
                 </Select>
               </Field>
+
+              <ActiveField
+                active={form.active}
+                onChange={(v) => setForm({ ...form, active: v })}
+                hint={`Inactive ${cfg.title.toLowerCase()} keep their history but disappear from the app's Insights tab.`}
+              />
 
               <div className="mt-4 flex gap-2.5">
                 <Button type="submit">Save</Button>

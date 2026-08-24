@@ -42,11 +42,11 @@ function NavTab({ to, label, end }: { to: string; label: string; end?: boolean }
                flipping its own background on. */
             <motion.span
               layoutId="nav-active"
-              className="absolute inset-0 rounded-lg bg-page2"
+              className="absolute inset-0 rounded-lg border border-accent/30 bg-accent/12"
               transition={spring}
             />
           )}
-          <span className={cx("relative transition-colors", isActive ? "font-semibold text-ink" : "text-muted hover:text-ink")}>
+          <span className={cx("relative transition-colors", isActive ? "font-semibold text-accent" : "text-muted hover:text-ink")}>
             {label}
           </span>
         </>
@@ -60,7 +60,8 @@ export function Navbar({ module, admin }: { module?: ModuleKey; admin?: boolean 
   const mod = module ? MODULE_NAV[module] : null;
 
   return (
-    <nav className="sticky top-0 z-20 flex items-center gap-1.5 border-b border-rule bg-page/85 px-6 py-3 backdrop-blur-md">
+    <nav className="sticky top-0 z-20 flex items-center gap-1.5 border-b border-rule bg-page/80 px-6 py-3 backdrop-blur-xl">
+      <span aria-hidden className="grad absolute inset-x-0 top-0 h-[2px]" />
       {mod || admin ? (
         <>
           <Link
@@ -74,8 +75,8 @@ export function Navbar({ module, admin }: { module?: ModuleKey; admin?: boolean 
           </span>
         </>
       ) : (
-        <Link to="/" className="mr-4 shrink-0 font-display text-[17px] font-semibold">
-          📒 Khata
+        <Link to="/" className="mr-4 shrink-0 font-display text-[17px] font-extrabold tracking-tight">
+          📒 <span className="grad-text">Khata</span>
         </Link>
       )}
 

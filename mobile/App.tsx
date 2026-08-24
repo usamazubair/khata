@@ -7,7 +7,7 @@ import RootNavigator from "./src/Navigation";
 import LoginScreen from "./src/screens/LoginScreen";
 import { AuthProvider, useAuth } from "./src/AuthContext";
 import { useTheme } from "./src/theme";
-import { configureNotificationHandler, refreshWorkoutReminder } from "./src/lib/reminders";
+import { configureNotificationHandler, refreshReminders } from "./src/lib/reminders";
 
 configureNotificationHandler();
 
@@ -17,12 +17,13 @@ function Root() {
   const appState = useRef(AppState.currentState);
 
   // Rebuild the reminder schedule on sign-in and whenever the app returns to
-  // the foreground, so "already trained today" stays accurate.
+  // the foreground, so "already trained today" and "this bill is still open"
+  // stay accurate.
   useEffect(() => {
     if (!user) return;
-    refreshWorkoutReminder();
+    refreshReminders();
     const sub = AppState.addEventListener("change", (next) => {
-      if (appState.current.match(/inactive|background/) && next === "active") refreshWorkoutReminder();
+      if (appState.current.match(/inactive|background/) && next === "active") refreshReminders();
       appState.current = next;
     });
     return () => sub.remove();

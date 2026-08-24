@@ -1,13 +1,16 @@
 import { useCallback, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { Link } from "react-router-dom";
+import { BellRing } from "lucide-react";
 import { currentMonth, del, get, money, post, put, seriesColor } from "@/lib/api";
 import { rowItem } from "@/lib/motion";
 import { Navbar, Page } from "@/components/Shell";
 import { CrudLayout } from "@/components/CrudLayout";
 import {
+  ActiveField,
   ActiveToggle,
   Button,
+  DayPicker,
   Dot,
   ErrorText,
   Field,
@@ -29,12 +32,18 @@ const STATUS = {
   unlogged: { label: "Not logged", tone: "neutral" },
 } as const;
 
+function ordinal(n: number) {
+  const rest = n % 100;
+  if (rest >= 11 && rest <= 13) return `${n}th`;
+  return n + (["th", "st", "nd", "rd"][n % 10] ?? "th");
+}
+
 export default function Fixed() {
   const [rows, setRows] = useState<FixedExpense[]>([]);
   const [cats, setCats] = useState<Category[]>([]);
   const [q, setQ] = useState("");
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [form, setForm] = useState({ name: "", description: "", amount: "", due_day: "1", category_id: "" });
+  const [form, setForm] = useState({ name: "", description: "", amount: "", due_day: 1, category_id: "", active: true });
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -57,7 +66,7 @@ export default function Fixed() {
 
   function reset() {
     setEditingId(null);
-    setForm({ name: "", description: "", amount: "", due_day: "1", category_id: String(cats[0]?.id ?? "") });
+    setForm({ name: "", description: "", amount: "", due_day: 1, category_id: String(cats[0]?.id ?? ""), active: true });
     setError(null);
   }
 
@@ -67,8 +76,9 @@ export default function Fixed() {
       name: b.name,
       description: b.description ?? "",
       amount: String(Number(b.amount)),
-      due_day: String(b.due_day),
+      due_day: b.due_day,
       category_id: String(b.category_id),
+      active: b.active,
     });
     setError(null);
   }
@@ -80,8 +90,9 @@ export default function Fixed() {
       name: form.name.trim(),
       description: form.description.trim(),
       amount: Number(form.amount),
-      due_day: Number(form.due_day),
+      due_day: form.due_day,
       category_id: Number(form.category_id),
+      active: form.active,
     };
     if (!body.name || !body.category_id) return;
     try {
@@ -115,16 +126,17 @@ export default function Fixed() {
 
         <CrudLayout
           toolbar={<SearchInput value={q} onChange={setQ} placeholder="Search fixed transactions…" />}
+          footer="Every bill repeats on the same day each month. The app reminds you the day before, and again on the day itself until you log it."
           table={
             <TableShell
               head={
                 <>
                   <th className="table-head">Name</th>
                   <th className="table-head">Category</th>
-                  <th className="table-head">Due</th>
+                  <th className="table-head">Repeats</th>
                   <th className="table-head">Amount</th>
+                  <th className="table-head">This month</th>
                   <th className="table-head">Status</th>
-                  <th className="table-head">Active</th>
                   <th className="table-head" />
                 </>
               }
@@ -144,7 +156,7 @@ export default function Fixed() {
                         <Dot color={seriesColor(b.category_color)} /> {b.category_name}
                       </span>
                     </td>
-                    <td className="table-cell text-muted">{b.due_day}</td>
+                    <td className="table-cell whitespace-nowrap text-muted">{ordinal(b.due_day)} monthly</td>
                     <td className="table-cell num whitespace-nowrap">{money(b.amount)}</td>
                     <td className="table-cell">
                       <Pill tone={STATUS[b.status].tone}>{STATUS[b.status].label}</Pill>
@@ -207,28 +219,31 @@ export default function Fixed() {
                   placeholder="Optional note"
                 />
               </Field>
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="Amount">
-                  <TextInput
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={form.amount}
-                    onChange={(e) => setForm({ ...form, amount: e.target.value })}
-                    required
-                  />
-                </Field>
-                <Field label="Due day">
-                  <TextInput
-                    type="number"
-                    min="1"
-                    max="31"
-                    value={form.due_day}
-                    onChange={(e) => setForm({ ...form, due_day: e.target.value })}
-                    required
-                  />
-                </Field>
+              <Field label="Amount">
+                <TextInput
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={form.amount}
+                  onChange={(e) => setForm({ ...form, amount: e.target.value })}
+                  required
+                />
+              </Field>
+
+              <Field label={`Due date — repeats the ${ordinal(form.due_day)} of every month`}>
+                <DayPicker value={form.due_day} onChange={(d) => setForm({ ...form, due_day: d })} />
+              </Field>
+
+              <div className="mb-3.5 flex gap-2.5 rounded-lg border border-accent/35 bg-accent/8 px-3 py-2.5 text-[11.5px] text-muted">
+                <BellRing size={15} className="mt-px shrink-0 text-accent" />
+                <span>
+                  You'll be nudged on the <strong className="text-ink">{ordinal(Math.max(1, form.due_day - 1))}</strong>{" "}
+                  ({form.due_day === 1 ? "the last day of the previous month" : "a day early"}) and again on the{" "}
+                  <strong className="text-ink">{ordinal(form.due_day)}</strong> if it still isn't logged. Turn the
+                  reminders on and pick the time in the app's Settings.
+                </span>
               </div>
+
               <Field label="Category (fixed)">
                 <Select value={form.category_id} onChange={(e) => setForm({ ...form, category_id: e.target.value })} required>
                   {cats.map((c) => (
@@ -238,6 +253,12 @@ export default function Fixed() {
                   ))}
                 </Select>
               </Field>
+
+              <ActiveField
+                active={form.active}
+                onChange={(v) => setForm({ ...form, active: v })}
+                hint="Inactive bills stop reminding you and stop reaching the mobile app, but keep their history."
+              />
 
               <div className="mt-4 flex gap-2.5">
                 <Button type="submit">Save</Button>

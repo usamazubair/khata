@@ -154,7 +154,7 @@ export default function TransactionsOverview() {
                   const color =
                     remaining < 0 ? "var(--critical)" : pct >= 85 ? "var(--warning)" : "var(--accent-2)";
                   return (
-                    <motion.div key={b.id} variants={riseItem} layout className="rounded-xl border border-rule bg-page px-4 py-3.5">
+                    <motion.div key={b.id} variants={riseItem} layout className="surface px-4 py-3.5">
                       <div className="flex items-baseline justify-between gap-3 text-[13px]">
                         <span className="flex items-center gap-2 font-semibold">
                           <Dot color={seriesColor(b.category_color)} /> {b.name}
@@ -191,7 +191,7 @@ export default function TransactionsOverview() {
                   const remaining = Number(g.remaining);
                   const pct = price > 0 ? (saved / price) * 100 : 0;
                   return (
-                    <motion.div key={g.id} variants={riseItem} layout className="rounded-xl border border-rule bg-page px-4 py-3.5">
+                    <motion.div key={g.id} variants={riseItem} layout className="surface px-4 py-3.5">
                       <div className="flex items-baseline justify-between gap-3 text-[13px]">
                         <span className="flex items-center gap-2 font-semibold">
                           <Dot color={seriesColor(g.category_color)} /> {g.name}

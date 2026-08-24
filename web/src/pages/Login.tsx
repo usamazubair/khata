@@ -30,14 +30,14 @@ export default function Login() {
       <motion.div
         aria-hidden
         className="pointer-events-none absolute -top-40 -left-40 size-[32rem] rounded-full blur-3xl"
-        style={{ background: "radial-gradient(circle, var(--accent) 0%, transparent 70%)", opacity: 0.16 }}
+        style={{ background: "radial-gradient(circle, var(--accent) 0%, transparent 70%)", opacity: 0.3 }}
         animate={{ x: [0, 40, 0], y: [0, 24, 0] }}
         transition={{ duration: 18, repeat: Infinity, ease: "easeInOut" }}
       />
       <motion.div
         aria-hidden
         className="pointer-events-none absolute -right-40 -bottom-40 size-[32rem] rounded-full blur-3xl"
-        style={{ background: "radial-gradient(circle, var(--accent-2) 0%, transparent 70%)", opacity: 0.16 }}
+        style={{ background: "radial-gradient(circle, var(--accent-2) 0%, transparent 70%)", opacity: 0.28 }}
         animate={{ x: [0, -32, 0], y: [0, -20, 0] }}
         transition={{ duration: 22, repeat: Infinity, ease: "easeInOut" }}
       />
@@ -52,7 +52,7 @@ export default function Login() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.12, duration: 0.4 }}
-          className="mb-2 text-center font-mono text-[11px] tracking-[0.09em] text-accent uppercase"
+          className="mb-2 text-center font-mono text-[11px] font-medium tracking-[0.14em] text-accent uppercase"
         >
           Khata
         </motion.p>
@@ -60,7 +60,7 @@ export default function Login() {
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.16, duration: 0.4, ease }}
-          className="text-center font-display text-3xl"
+          className="grad-text text-center font-display text-[32px] font-extrabold"
         >
           Sign in
         </motion.h1>

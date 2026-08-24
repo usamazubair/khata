@@ -1,60 +1,86 @@
 import { Platform, useColorScheme } from "react-native";
 
+/* Same direction as the dashboard: a cool steel ground carrying saturated
+   blue / violet / blaze-orange accents. Kept flat here — React Native has no
+   CSS gradients without another dependency, and solid steps read cleanly on a
+   phone anyway. */
 const light = {
-  paper: "#F2ECDD",
-  page: "#FBF8F0",
-  page2: "#E8DFC7",
-  rule: "#D6C9A8",
-  ink: "#241C15",
-  inkMuted: "#6E6250",
-  accent: "#7A2331",
-  accentInk: "#FBF8F0",
-  accent2: "#C79A44",
+  paper: "#EAEEFA",
+  page: "#FFFFFF",
+  page2: "#E2E8F6",
+  rule: "#CDD7EC",
+  ink: "#0C1526",
+  inkMuted: "#56688A",
+  accent: "#2F4BFF",
+  accentInk: "#FFFFFF",
+  accent2: "#FF6A2B",
+  accent3: "#7B3FF2",
 };
 
 const dark = {
-  paper: "#1C1712",
-  page: "#241D16",
-  page2: "#2E251A",
-  rule: "#3A2F22",
-  ink: "#EDE6D6",
-  inkMuted: "#A89A82",
-  accent: "#E08A99",
-  accentInk: "#241D16",
-  accent2: "#D9A752",
+  paper: "#070A12",
+  page: "#101725",
+  page2: "#192234",
+  rule: "#26314A",
+  ink: "#E9EEFB",
+  inkMuted: "#93A2C0",
+  accent: "#5B7CFF",
+  accentInk: "#060A14",
+  accent2: "#FF824A",
+  accent3: "#9A6BFF",
 };
 
-const status = {
-  good: "#0ca30c",
-  warning: "#fab219",
-  serious: "#ec835a",
-  critical: "#d03b3b",
+const statusLight = {
+  good: "#00996B",
+  warning: "#E08700",
+  serious: "#F4661F",
+  critical: "#E03551",
 };
 
-// Light-mode categorical hex (as stored in the DB) -> its dark-mode step.
+const statusDark = {
+  good: "#21C98E",
+  warning: "#FFB32E",
+  serious: "#FF8043",
+  critical: "#FF5C72",
+};
+
+// Stored category hex -> its dark-mode step. Both the current swatches and the
+// ones earlier categories were saved with are listed, so older rows keep
+// adapting instead of falling back to a colour tuned for a light ground.
 export const CATEGORY_DARK_STEP: Record<string, string> = {
-  "#2a78d6": "#3987e5",
-  "#eb6834": "#d95926",
-  "#1baf7a": "#199e70",
-  "#eda100": "#c98500",
-  "#e87ba4": "#d55181",
-  "#008300": "#008300",
-  "#4a3aa7": "#9085e9",
-  "#e34948": "#e66767",
+  // current palette
+  "#2f6bff": "#5b86ff",
+  "#f4661f": "#ff8043",
+  "#00b37e": "#16c791",
+  "#f0a500": "#ffb92e",
+  "#e0459c": "#ef62ae",
+  "#12b0c9": "#2ecbe3",
+  "#7b3ff2": "#9a6bff",
+  "#e33b4e": "#ff5c6e",
+  // retired palette, still present on existing categories
+  "#2a78d6": "#5b86ff",
+  "#eb6834": "#ff8043",
+  "#1baf7a": "#16c791",
+  "#eda100": "#ffb92e",
+  "#e87ba4": "#ef62ae",
+  "#008300": "#16c791",
+  "#4a3aa7": "#9a6bff",
+  "#e34948": "#ff5c6e",
 };
 
 export function useTheme() {
   const scheme = useColorScheme();
-  const c = scheme === "dark" ? dark : light;
+  const isDark = scheme === "dark";
+  const c = isDark ? dark : light;
   return {
     ...c,
-    status,
-    isDark: scheme === "dark",
-    categoryColor: (hex: string) => (scheme === "dark" ? CATEGORY_DARK_STEP[hex] || hex : hex),
+    status: isDark ? statusDark : statusLight,
+    isDark,
+    categoryColor: (hex: string) => (isDark ? CATEGORY_DARK_STEP[hex] || hex : hex),
   };
 }
 
 export const fonts = {
-  display: Platform.select({ ios: "Georgia", android: "serif", default: "serif" }),
+  display: Platform.select({ ios: "Avenir Next", android: "sans-serif-condensed", default: "System" }),
   mono: Platform.select({ ios: "Menlo", android: "monospace", default: "monospace" }),
 };

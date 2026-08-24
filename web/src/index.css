@@ -1,58 +1,71 @@
 @import "tailwindcss";
 
-/* The palette lives in plain custom properties so it can swap for dark mode,
-   then gets exposed to Tailwind via `@theme inline` — that keeps `bg-paper`,
-   `text-ink` etc. working in both modes without a `dark:` prefix everywhere. */
+/* ── palette ───────────────────────────────────────────────────────────────
+   Plain custom properties so the whole theme can swap for dark mode, then
+   exposed to Tailwind through `@theme inline` — that keeps `bg-paper`,
+   `text-ink` etc. working in both modes without a `dark:` prefix everywhere.
+
+   Direction: gunmetal + electric. A cool steel base carries saturated blue →
+   violet → blaze-orange accents, so colour reads as energy rather than
+   decoration. */
 :root {
-  --paper: #f2ecdd;
-  --page: #fbf8f0;
-  --page-2: #e8dfc7;
-  --rule: #d6c9a8;
-  --ink: #241c15;
-  --ink-muted: #6e6250;
-  --accent: #7a2331;
-  --accent-ink: #fbf8f0;
-  --accent-2: #c79a44;
-  --shadow-tint: 36 28 21;
+  --paper: #eaeefa;
+  --page: #ffffff;
+  --page-2: #e2e8f6;
+  --rule: #cdd7ec;
+  --ink: #0c1526;
+  --ink-muted: #56688a;
+  --accent: #2f4bff;
+  --accent-ink: #ffffff;
+  --accent-2: #ff6a2b;
+  --accent-3: #7b3ff2;
+  --shadow-tint: 12 21 38;
+  --glow: 47 75 255;
 
-  --good: #0ca30c;
-  --warning: #fab219;
-  --critical: #d03b3b;
+  --good: #00996b;
+  --warning: #e08700;
+  --critical: #e03551;
 
-  /* Categorical series, light steps (validated for contrast on paper). */
-  --series-1: #2a78d6;
-  --series-2: #eb6834;
-  --series-3: #1baf7a;
-  --series-4: #eda100;
-  --series-5: #e87ba4;
-  --series-6: #008300;
-  --series-7: #4a3aa7;
-  --series-8: #e34948;
+  /* Categorical series — vivid, and readable on both grounds. */
+  --series-1: #2f6bff;
+  --series-2: #f4661f;
+  --series-3: #00b37e;
+  --series-4: #f0a500;
+  --series-5: #e0459c;
+  --series-6: #12b0c9;
+  --series-7: #7b3ff2;
+  --series-8: #e33b4e;
 
   color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --paper: #1c1712;
-    --page: #241d16;
-    --page-2: #2e251a;
-    --rule: #3a2f22;
-    --ink: #ede6d6;
-    --ink-muted: #a89a82;
-    --accent: #e08a99;
-    --accent-ink: #241d16;
-    --accent-2: #d9a752;
+    --paper: #070a12;
+    --page: #101725;
+    --page-2: #192234;
+    --rule: #26314a;
+    --ink: #e9eefb;
+    --ink-muted: #93a2c0;
+    --accent: #5b7cff;
+    --accent-ink: #060a14;
+    --accent-2: #ff824a;
+    --accent-3: #9a6bff;
     --shadow-tint: 0 0 0;
+    --glow: 91 124 255;
 
-    --series-1: #3987e5;
-    --series-2: #d95926;
-    --series-3: #199e70;
-    --series-4: #c98500;
-    --series-5: #d55181;
-    --series-6: #008300;
-    --series-7: #9085e9;
-    --series-8: #e66767;
+    --good: #21c98e;
+    --warning: #ffb32e;
+    --critical: #ff5c72;
+
+    --series-1: #5b86ff;
+    --series-2: #ff8043;
+    --series-3: #16c791;
+    --series-4: #ffb92e;
+    --series-5: #ef62ae;
+    --series-6: #2ecbe3;
+    --series-7: #9a6bff;
+    --series-8: #ff5c6e;
 
     color-scheme: dark;
   }
@@ -68,6 +81,7 @@
   --color-accent: var(--accent);
   --color-accent-ink: var(--accent-ink);
   --color-accent2: var(--accent-2);
+  --color-accent3: var(--accent-3);
   --color-good: var(--good);
   --color-warning: var(--warning);
   --color-critical: var(--critical);
@@ -81,9 +95,9 @@
   --color-series-7: var(--series-7);
   --color-series-8: var(--series-8);
 
-  --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
-  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", monospace;
+  --font-display: "Sora", "Segoe UI Semibold", system-ui, sans-serif;
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", "Cascadia Mono", monospace;
 }
 
 @layer base {
@@ -92,6 +106,25 @@
     color: var(--ink);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
+  }
+
+  /* Two fixed washes give the whole app depth. They sit behind everything and
+     never scroll, so pages feel lit rather than painted. */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+      radial-gradient(60rem 40rem at 8% -10%, color-mix(in oklab, var(--accent) 26%, transparent), transparent 60%),
+      radial-gradient(50rem 36rem at 100% 0%, color-mix(in oklab, var(--accent-2) 20%, transparent), transparent 62%);
+    opacity: 0.5;
+  }
+
+  h1, h2, h3 {
+    font-family: var(--font-display);
+    letter-spacing: -0.018em;
   }
 
   ::selection {
@@ -112,22 +145,39 @@
 }
 
 @layer components {
+  /* The one gradient the whole app shares — headings, primary buttons and
+     progress fills all pull from it so the colour never drifts. */
+  .grad {
+    background-image: linear-gradient(115deg, var(--accent) 0%, var(--accent-3) 52%, var(--accent-2) 100%);
+  }
+  .grad-text {
+    background-image: linear-gradient(115deg, var(--accent) 0%, var(--accent-3) 52%, var(--accent-2) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
   .field-label {
-    @apply mb-1.5 block font-mono text-[10px] tracking-[0.06em] text-muted uppercase;
+    @apply mb-1.5 block font-mono text-[10px] font-medium tracking-[0.08em] text-muted uppercase;
   }
   .field-input {
     @apply w-full rounded-lg border border-rule bg-paper px-3 py-2.5 text-sm text-ink
-           outline-none transition-colors placeholder:text-muted/70
-           focus:border-accent focus:ring-2 focus:ring-accent/20;
+           outline-none transition-[border-color,box-shadow] placeholder:text-muted/70
+           focus:border-accent focus:ring-2 focus:ring-accent/25;
   }
   .table-head {
-    @apply px-4 py-3 text-left font-mono text-[10px] font-medium tracking-[0.05em] text-muted uppercase;
+    @apply px-4 py-3 text-left font-mono text-[10px] font-medium tracking-[0.07em] text-muted uppercase;
   }
   .table-cell {
     @apply px-4 py-3 align-middle text-[13px];
   }
   .num {
     @apply font-mono tabular-nums;
+  }
+  /* Panels sit slightly above the washed background. */
+  .surface {
+    @apply rounded-2xl border border-rule bg-page;
+    box-shadow: 0 1px 2px rgb(var(--shadow-tint) / 0.05), 0 12px 32px -18px rgb(var(--shadow-tint) / 0.35);
   }
 }
 

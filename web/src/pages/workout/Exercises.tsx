@@ -6,6 +6,7 @@ import { rowItem } from "@/lib/motion";
 import { Navbar, Page } from "@/components/Shell";
 import { CrudLayout } from "@/components/CrudLayout";
 import {
+  ActiveField,
   ActiveToggle,
   Button,
   ErrorText,
@@ -25,7 +26,7 @@ export default function Exercises() {
   const [rows, setRows] = useState<Exercise[]>([]);
   const [q, setQ] = useState("");
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [form, setForm] = useState({ name: "", muscle_group: "", equipment: "", notes: "" });
+  const [form, setForm] = useState({ name: "", muscle_group: "", equipment: "", notes: "", active: true });
   const [media, setMedia] = useState<MediaValue>({ media_url: null, media_public_id: null, media_type: null });
   const [error, setError] = useState<string | null>(null);
 
@@ -43,7 +44,7 @@ export default function Exercises() {
 
   function reset() {
     setEditingId(null);
-    setForm({ name: "", muscle_group: "", equipment: "", notes: "" });
+    setForm({ name: "", muscle_group: "", equipment: "", notes: "", active: true });
     setMedia({ media_url: null, media_public_id: null, media_type: null });
     setError(null);
   }
@@ -56,6 +57,7 @@ export default function Exercises() {
       muscle_group: form.muscle_group.trim(),
       equipment: form.equipment.trim(),
       notes: form.notes.trim(),
+      active: form.active,
       ...media,
     };
     if (!body.name) return;
@@ -144,6 +146,7 @@ export default function Exercises() {
                               muscle_group: x.muscle_group ?? "",
                               equipment: x.equipment ?? "",
                               notes: x.notes ?? "",
+                              active: x.active,
                             });
                             setMedia({
                               media_url: x.media_url,
@@ -215,6 +218,11 @@ export default function Exercises() {
                   placeholder="Form cues, setup, anything worth remembering"
                 />
               </Field>
+              <ActiveField
+                active={form.active}
+                onChange={(v) => setForm({ ...form, active: v })}
+                hint="Inactive exercises stay in past sessions but stop appearing when you log new sets."
+              />
               <div className="mt-4 flex gap-2.5">
                 <Button type="submit">Save</Button>
                 {editingId && (

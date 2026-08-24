@@ -5,11 +5,13 @@ import { rowItem, spring } from "@/lib/motion";
 import { Navbar, Page } from "@/components/Shell";
 import { CrudLayout } from "@/components/CrudLayout";
 import {
+  ActiveField,
   ActiveToggle,
   Button,
   Dot,
   ErrorText,
   Field,
+  FilterChips,
   IconButton,
   PageHeader,
   SearchInput,
@@ -20,15 +22,24 @@ import {
 import type { Category, CategoryType } from "@/lib/types";
 
 const TYPES: CategoryType[] = ["expense", "fixed", "saved", "budget"];
-const SWATCHES = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#4a3aa7", "#e34948"];
+const FILTERS: { value: CategoryType | "all"; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "expense", label: "Expense" },
+  { value: "fixed", label: "Fixed" },
+  { value: "saved", label: "Saved" },
+  { value: "budget", label: "Budgets" },
+];
+const SWATCHES = ["#2f6bff", "#f4661f", "#00b37e", "#f0a500", "#e0459c", "#12b0c9", "#7b3ff2", "#e33b4e"];
 
 export default function Categories() {
   const [rows, setRows] = useState<Category[]>([]);
   const [q, setQ] = useState("");
+  const [typeFilter, setTypeFilter] = useState<CategoryType | "all">("all");
   const [editingId, setEditingId] = useState<number | null>(null);
   const [name, setName] = useState("");
   const [type, setType] = useState<CategoryType>("expense");
   const [color, setColor] = useState(SWATCHES[0]);
+  const [active, setActive] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -48,6 +59,7 @@ export default function Categories() {
     setName("");
     setType("expense");
     setColor(SWATCHES[0]);
+    setActive(true);
     setError(null);
   }
 
@@ -56,6 +68,7 @@ export default function Categories() {
     setName(c.name);
     setType(c.type);
     setColor(c.color);
+    setActive(c.active);
     setError(null);
   }
 
@@ -64,7 +77,7 @@ export default function Categories() {
     if (!name.trim()) return;
     setError(null);
     try {
-      const body = { name: name.trim(), type, color };
+      const body = { name: name.trim(), type, color, active };
       if (editingId) await put(`/api/categories/${editingId}`, body);
       else await post("/api/categories", body);
       reset();
@@ -77,6 +90,7 @@ export default function Categories() {
   async function toggle(c: Category) {
     try {
       await put(`/api/categories/${c.id}`, { active: !c.active });
+      if (editingId === c.id) setActive(!c.active);
       await load();
     } catch (err) {
       alert((err as Error).message);
@@ -94,7 +108,15 @@ export default function Categories() {
     }
   }
 
-  const filtered = rows.filter((c) => c.name.toLowerCase().includes(q.trim().toLowerCase()));
+  const matchesSearch = (c: Category) => c.name.toLowerCase().includes(q.trim().toLowerCase());
+  // Counts come from the search results, not the whole table, so the numbers
+  // on the chips always describe what clicking one would actually show.
+  const searched = rows.filter(matchesSearch);
+  const filtered = searched.filter((c) => typeFilter === "all" || c.type === typeFilter);
+  const counts = FILTERS.map((f) => ({
+    ...f,
+    count: f.value === "all" ? searched.length : searched.filter((c) => c.type === f.value).length,
+  }));
 
   return (
     <>
@@ -103,7 +125,12 @@ export default function Categories() {
         <PageHeader eyebrow="Transactions" title="Categories" />
 
         <CrudLayout
-          toolbar={<SearchInput value={q} onChange={setQ} placeholder="Search categories…" />}
+          toolbar={
+            <div className="w-full space-y-3">
+              <SearchInput value={q} onChange={setQ} placeholder="Search categories…" />
+              <FilterChips options={counts} value={typeFilter} onChange={setTypeFilter} />
+            </div>
+          }
           table={
             <TableShell
               head={
@@ -149,7 +176,7 @@ export default function Categories() {
               {filtered.length === 0 && (
                 <tr>
                   <td colSpan={5} className="table-cell text-muted">
-                    {rows.length ? "No categories match your search." : "No categories yet."}
+                    {rows.length ? "No categories match those filters." : "No categories yet."}
                   </td>
                 </tr>
               )}
@@ -179,7 +206,7 @@ export default function Categories() {
                       {type === t && (
                         <motion.span
                           layoutId="cat-type"
-                          className="absolute inset-0 rounded-lg bg-page2"
+                          className="absolute inset-0 rounded-lg bg-accent/12"
                           transition={spring}
                         />
                       )}
@@ -209,6 +236,12 @@ export default function Categories() {
                   ))}
                 </div>
               </Field>
+
+              <ActiveField
+                active={active}
+                onChange={setActive}
+                hint="Inactive categories keep their transactions but stop being offered in the mobile app."
+              />
 
               <div className="mt-4 flex gap-2.5">
                 <Button type="submit">Save</Button>

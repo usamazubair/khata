@@ -113,16 +113,28 @@ export function fullDate(iso: string) {
   return new Date(iso).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
 }
 
-// Light-mode series hex (as stored) -> its dark-mode step.
+// Stored category hex -> its dark-mode step. Both the current swatches and the
+// ones earlier categories were saved with are listed, so older rows keep
+// adapting instead of falling back to a colour tuned for a light ground.
 const DARK_STEP: Record<string, string> = {
-  "#2a78d6": "#3987e5",
-  "#eb6834": "#d95926",
-  "#1baf7a": "#199e70",
-  "#eda100": "#c98500",
-  "#e87ba4": "#d55181",
-  "#008300": "#008300",
-  "#4a3aa7": "#9085e9",
-  "#e34948": "#e66767",
+  // current palette
+  "#2f6bff": "#5b86ff",
+  "#f4661f": "#ff8043",
+  "#00b37e": "#16c791",
+  "#f0a500": "#ffb92e",
+  "#e0459c": "#ef62ae",
+  "#12b0c9": "#2ecbe3",
+  "#7b3ff2": "#9a6bff",
+  "#e33b4e": "#ff5c6e",
+  // retired palette, still present on existing categories
+  "#2a78d6": "#5b86ff",
+  "#eb6834": "#ff8043",
+  "#1baf7a": "#16c791",
+  "#eda100": "#ffb92e",
+  "#e87ba4": "#ef62ae",
+  "#008300": "#16c791",
+  "#4a3aa7": "#9a6bff",
+  "#e34948": "#ff5c6e",
 };
 
 export function seriesColor(hex: string) {

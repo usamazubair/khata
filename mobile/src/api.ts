@@ -119,6 +119,13 @@ export const api = {
     remove: (id: number) => request(`/api/transactions/${id}`, { method: "DELETE" }),
   },
 
+  // Read-only here: bills are created and confirmed from the web dashboard,
+  // the app only needs them to know what to remind you about.
+  fixedExpenses: {
+    list: (month: string) =>
+      request(`/api/fixed-expenses?${new URLSearchParams({ month, active: "true" }).toString()}`),
+  },
+
   budgets: {
     list: (month: string) => request(`/api/budgets?${new URLSearchParams({ month, active: "true" }).toString()}`),
   },

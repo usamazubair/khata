@@ -21,6 +21,22 @@ export type Category = {
   active: boolean;
 };
 
+export type FixedExpense = {
+  id: number;
+  name: string;
+  slug: string;
+  description: string;
+  amount: string;
+  due_day: number;
+  active: boolean;
+  category_id: number;
+  category_name: string;
+  category_color: string;
+  transaction_id: number | null;
+  is_paid: boolean | null;
+  status: "paid" | "due" | "unlogged";
+};
+
 export type Transaction = {
   id: number;
   category_id: number;

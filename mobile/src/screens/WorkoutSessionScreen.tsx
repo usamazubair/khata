@@ -6,7 +6,7 @@ import { useTheme, fonts } from "../theme";
 import { api } from "../api";
 import { Exercise, WorkoutSession, WorkoutSet } from "../types";
 import { kg } from "./WorkoutHomeScreen";
-import { refreshWorkoutReminder } from "../lib/reminders";
+import { refreshReminders } from "../lib/reminders";
 
 export default function WorkoutSessionScreen({ route, navigation }: any) {
   const t = useTheme();
@@ -61,7 +61,7 @@ export default function WorkoutSessionScreen({ route, navigation }: any) {
     try {
       await api.workouts.addSet(sessionId, { exercise_id: exerciseId, reps: numReps, weight: Number(weight) || 0 });
       await load();
-      refreshWorkoutReminder();
+      refreshReminders();
     } catch (err: any) {
       Alert.alert("Couldn't log that set", err.message);
     } finally {

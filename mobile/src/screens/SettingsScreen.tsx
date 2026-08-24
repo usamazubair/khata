@@ -7,11 +7,83 @@ import { useAuth } from "../AuthContext";
 import { api } from "../api";
 import {
   ensurePermission,
-  formatReminderTime,
+  formatTimePref,
   getReminderPrefs,
   setReminderPrefs,
   type ReminderPrefs,
+  type TimePref,
 } from "../lib/reminders";
+
+const DEFAULTS: ReminderPrefs = {
+  workout: { enabled: false, hour: 19, minute: 0 },
+  bills: { enabled: false, hour: 10, minute: 0 },
+};
+
+/** One reminder: a switch, and — once it's on — the time it fires. */
+function ReminderCard({
+  title,
+  description,
+  pref,
+  onChange,
+}: {
+  title: string;
+  description: string;
+  pref: TimePref;
+  onChange: (next: TimePref) => void;
+}) {
+  const t = useTheme();
+  const [picking, setPicking] = useState(false);
+
+  async function toggle(enabled: boolean) {
+    if (enabled && !(await ensurePermission())) {
+      return Alert.alert(
+        "Notifications are off",
+        "Allow notifications for Khata in your phone's settings, then turn this back on."
+      );
+    }
+    onChange({ ...pref, enabled });
+  }
+
+  return (
+    <View style={[styles.card, { backgroundColor: t.page2 }]}>
+      <View style={styles.switchRow}>
+        <View style={{ flex: 1, paddingRight: 12 }}>
+          <Text style={{ color: t.ink, fontSize: 14, fontWeight: "600" }}>{title}</Text>
+          <Text style={{ color: t.inkMuted, fontSize: 11.5, marginTop: 3, lineHeight: 16 }}>{description}</Text>
+        </View>
+        <Switch value={pref.enabled} onValueChange={toggle} trackColor={{ true: t.accent, false: t.rule }} />
+      </View>
+
+      {pref.enabled && (
+        <>
+          <Pressable
+            onPress={() => setPicking(true)}
+            style={[styles.timeButton, { borderColor: t.rule, backgroundColor: t.page }]}
+          >
+            <Text style={[styles.label, { color: t.inkMuted, marginBottom: 4 }]}>Remind me at</Text>
+            <Text style={{ color: t.ink, fontSize: 22, fontFamily: fonts.mono }}>{formatTimePref(pref)}</Text>
+          </Pressable>
+
+          {picking && (
+            <DateTimePicker
+              value={(() => {
+                const d = new Date();
+                d.setHours(pref.hour, pref.minute, 0, 0);
+                return d;
+              })()}
+              mode="time"
+              display={Platform.OS === "ios" ? "spinner" : "default"}
+              onChange={(_, selected) => {
+                setPicking(Platform.OS === "ios");
+                if (selected) onChange({ ...pref, hour: selected.getHours(), minute: selected.getMinutes() });
+              }}
+            />
+          )}
+        </>
+      )}
+    </View>
+  );
+}
 
 export default function SettingsScreen() {
   const t = useTheme();
@@ -19,9 +91,7 @@ export default function SettingsScreen() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [busy, setBusy] = useState(false);
-
-  const [prefs, setPrefs] = useState<ReminderPrefs>({ enabled: false, hour: 19, minute: 0 });
-  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [prefs, setPrefs] = useState<ReminderPrefs>(DEFAULTS);
 
   useFocusEffect(
     useCallback(() => {
@@ -29,20 +99,7 @@ export default function SettingsScreen() {
     }, [])
   );
 
-  async function toggleReminder(enabled: boolean) {
-    if (enabled && !(await ensurePermission())) {
-      return Alert.alert(
-        "Notifications are off",
-        "Allow notifications for Khata in your phone's settings, then turn this back on."
-      );
-    }
-    const next = { ...prefs, enabled };
-    setPrefs(next);
-    await setReminderPrefs(next);
-  }
-
-  async function changeTime(hour: number, minute: number) {
-    const next = { ...prefs, hour, minute };
+  async function update(next: ReminderPrefs) {
     setPrefs(next);
     await setReminderPrefs(next);
   }
@@ -84,52 +141,20 @@ export default function SettingsScreen() {
         </Text>
       </View>
 
-      <Text style={[styles.sectionLabel, { color: t.inkMuted }]}>Workout reminder</Text>
-      <View style={[styles.card, { backgroundColor: t.page2 }]}>
-        <View style={styles.switchRow}>
-          <View style={{ flex: 1, paddingRight: 12 }}>
-            <Text style={{ color: t.ink, fontSize: 14 }}>Daily reminder</Text>
-            <Text style={{ color: t.inkMuted, fontSize: 11.5, marginTop: 2 }}>
-              Skipped automatically on days you've already logged a workout.
-            </Text>
-          </View>
-          <Switch
-            value={prefs.enabled}
-            onValueChange={toggleReminder}
-            trackColor={{ true: t.accent, false: t.rule }}
-          />
-        </View>
-
-        {prefs.enabled && (
-          <>
-            <Pressable
-              onPress={() => setShowTimePicker(true)}
-              style={[styles.timeButton, { borderColor: t.rule, backgroundColor: t.page }]}
-            >
-              <Text style={[styles.label, { color: t.inkMuted, marginBottom: 4 }]}>Remind me at</Text>
-              <Text style={{ color: t.ink, fontSize: 22, fontFamily: fonts.mono }}>
-                {formatReminderTime(prefs)}
-              </Text>
-            </Pressable>
-
-            {showTimePicker && (
-              <DateTimePicker
-                value={(() => {
-                  const d = new Date();
-                  d.setHours(prefs.hour, prefs.minute, 0, 0);
-                  return d;
-                })()}
-                mode="time"
-                display={Platform.OS === "ios" ? "spinner" : "default"}
-                onChange={(_, selected) => {
-                  setShowTimePicker(Platform.OS === "ios");
-                  if (selected) changeTime(selected.getHours(), selected.getMinutes());
-                }}
-              />
-            )}
-          </>
-        )}
-      </View>
+      <Text style={[styles.sectionLabel, { color: t.inkMuted }]}>Reminders</Text>
+      <ReminderCard
+        title="Workout"
+        description="A daily nudge, skipped automatically on days you've already logged a workout."
+        pref={prefs.workout}
+        onChange={(workout) => update({ ...prefs, workout })}
+      />
+      <View style={{ height: 10 }} />
+      <ReminderCard
+        title="Fixed bills"
+        description="For every active bill: one the day before its due date, and another on the day itself if it still isn't logged as paid."
+        pref={prefs.bills}
+        onChange={(bills) => update({ ...prefs, bills })}
+      />
 
       <Text style={[styles.sectionLabel, { color: t.inkMuted }]}>Change password</Text>
       <View style={[styles.card, { backgroundColor: t.page2 }]}>

@@ -270,7 +270,7 @@ export default function SessionDetail() {
               }
             />
 
-            <div className="mt-6 rounded-2xl border border-rule bg-page p-5">
+            <div className="surface mt-6 p-5">
               <div className="mb-2.5 flex items-center gap-3">
                 <span className="font-mono text-[10px] tracking-[0.06em] text-muted uppercase">Session</span>
               </div>
