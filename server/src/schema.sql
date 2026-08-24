@@ -8,9 +8,9 @@
 -- "expense" is everyday spending. Goals and budgets don't store their own
 -- progress — it's always derived by summing transactions in their category.
 
-DROP TABLE IF EXISTS records CASCADE;
-DROP TABLE IF EXISTS fields CASCADE;
-DROP TABLE IF EXISTS sections CASCADE;
+DROP TABLE IF EXISTS workout_sets CASCADE;
+DROP TABLE IF EXISTS workout_sessions CASCADE;
+DROP TABLE IF EXISTS exercises CASCADE;
 DROP TABLE IF EXISTS module_access CASCADE;
 DROP TABLE IF EXISTS modules CASCADE;
 DROP TABLE IF EXISTS users CASCADE;
@@ -21,8 +21,8 @@ DROP TABLE IF EXISTS goals CASCADE;
 DROP TABLE IF EXISTS categories CASCADE;
 
 -- ── Accounts and the module registry ──────────────────────────────────────
--- Khata is module #1 rather than the whole app; more modules get added from
--- the dashboard.
+-- Modules are a fixed, hand-built set (Transactions, Workout). They're
+-- enabled or disabled per user, not created at runtime.
 
 CREATE TABLE users (
   id            SERIAL PRIMARY KEY,
@@ -34,15 +34,14 @@ CREATE TABLE users (
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- kind='system' modules are hand-built pages (Khata). kind='generic' ones are
--- defined from the dashboard and rendered from their stored schema.
+-- home_page is the page a module's card opens.
 CREATE TABLE modules (
   id          SERIAL PRIMARY KEY,
   name        TEXT NOT NULL,
   slug        TEXT NOT NULL UNIQUE,
   description TEXT NOT NULL DEFAULT '',
   icon        TEXT NOT NULL DEFAULT '📦',
-  kind        TEXT NOT NULL DEFAULT 'generic' CHECK (kind IN ('system', 'generic')),
+  home_page   TEXT,
   sort_order  INT NOT NULL DEFAULT 0,
   active      BOOLEAN NOT NULL DEFAULT TRUE,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -55,76 +54,11 @@ CREATE TABLE module_access (
   PRIMARY KEY (user_id, module_id)
 );
 
-INSERT INTO modules (name, slug, description, icon, kind, sort_order) VALUES
-  ('Khata', 'khata', 'Expenses, budgets, goals and fixed bills', '📒', 'system', 1);
+INSERT INTO modules (name, slug, description, icon, home_page, sort_order) VALUES
+  ('Transactions', 'transactions', 'Expenses, budgets, goals and fixed bills', '📒', 'khata.html', 1),
+  ('Workout',      'workout',      'Exercises, sessions and sets',             '🏋️', 'workout.html', 2);
 
--- ── The generic engine ────────────────────────────────────────────────────
--- A generic module gets sections (its navigation pages), each section defines
--- fields (the shape of its table and form), and records hold the rows as
--- JSONB — so adding a module never changes the database structure.
-
--- A section with a page_key renders that hand-built page (Khata's screens)
--- instead of the generic table; it's still renamable, reorderable and
--- hideable, but can't take fields or be deleted.
-CREATE TABLE sections (
-  id         SERIAL PRIMARY KEY,
-  module_id  INT NOT NULL REFERENCES modules(id) ON DELETE CASCADE,
-  name       TEXT NOT NULL,
-  slug       TEXT NOT NULL,
-  icon       TEXT NOT NULL DEFAULT '📄',
-  page_key   TEXT,
-  sort_order INT NOT NULL DEFAULT 0,
-  active     BOOLEAN NOT NULL DEFAULT TRUE,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  UNIQUE (module_id, slug)
-);
-
--- options holds the type's extra config:
---   select   -> {"choices": ["Low", "Medium", "High"]}
---   relation -> {"section_id": 7}
-CREATE TABLE fields (
-  id          SERIAL PRIMARY KEY,
-  section_id  INT NOT NULL REFERENCES sections(id) ON DELETE CASCADE,
-  name        TEXT NOT NULL,
-  key         TEXT NOT NULL,
-  type        TEXT NOT NULL CHECK (type IN
-                ('text', 'longtext', 'number', 'money', 'date', 'boolean', 'select', 'color', 'relation')),
-  required    BOOLEAN NOT NULL DEFAULT FALSE,
-  options     JSONB NOT NULL DEFAULT '{}'::jsonb,
-  sort_order  INT NOT NULL DEFAULT 0,
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-  UNIQUE (section_id, key)
-);
-
-CREATE TABLE records (
-  id         SERIAL PRIMARY KEY,
-  section_id INT NOT NULL REFERENCES sections(id) ON DELETE CASCADE,
-  data       JSONB NOT NULL DEFAULT '{}'::jsonb,
-  active     BOOLEAN NOT NULL DEFAULT TRUE,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE INDEX idx_sections_module ON sections (module_id);
-
--- Khata's own pages, as sections, so its navbar is editable like any other.
-INSERT INTO sections (module_id, name, slug, icon, page_key, sort_order)
-SELECT m.id, v.name, v.slug, v.icon, v.page_key, v.sort_order
-FROM modules m
-CROSS JOIN (VALUES
-  ('Overview',           'overview',    '📊', 'khata.html',         1),
-  ('Transactions',       'transactions','📝', 'transactions.html',  2),
-  ('Categories',         'categories',  '🏷️', 'categories.html',    3),
-  ('Fixed Transactions', 'fixed',       '📅', 'fixed.html',         4),
-  ('Goals',              'goals',       '🎯', 'goals.html',         5),
-  ('Budgets',            'budgets',     '💰', 'budgets.html',       6)
-) AS v(name, slug, icon, page_key, sort_order)
-WHERE m.slug = 'khata';
-CREATE INDEX idx_fields_section ON fields (section_id);
-CREATE INDEX idx_records_section ON records (section_id);
-CREATE INDEX idx_records_data ON records USING GIN (data);
-
--- ── Khata module tables ───────────────────────────────────────────────────
+-- ── Transactions module tables ──────────────────────────────────────────
 
 CREATE TABLE categories (
   id         SERIAL PRIMARY KEY,
@@ -193,3 +127,49 @@ INSERT INTO categories (name, slug, type, color, sort_order) VALUES
   ('Other',           'other',           'expense', '#008300', 6),
   ('Internet',        'internet',        'fixed',   '#4a3aa7', 7),
   ('Rent',            'rent',            'fixed',   '#e34948', 8);
+
+-- ── Workout module tables ─────────────────────────────────────────────────
+-- Exercises are the library (managed on the web, like categories); a session
+-- is one workout on a date; sets are what you actually logged inside it.
+
+CREATE TABLE exercises (
+  id           SERIAL PRIMARY KEY,
+  name         TEXT NOT NULL UNIQUE,
+  slug         TEXT NOT NULL UNIQUE,
+  muscle_group TEXT NOT NULL DEFAULT '',
+  equipment    TEXT NOT NULL DEFAULT '',
+  notes        TEXT NOT NULL DEFAULT '',
+  sort_order   INT NOT NULL DEFAULT 0,
+  active       BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE workout_sessions (
+  id          SERIAL PRIMARY KEY,
+  name        TEXT NOT NULL DEFAULT '',
+  occurred_on DATE NOT NULL DEFAULT CURRENT_DATE,
+  notes       TEXT NOT NULL DEFAULT '',
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE workout_sets (
+  id          SERIAL PRIMARY KEY,
+  session_id  INT NOT NULL REFERENCES workout_sessions(id) ON DELETE CASCADE,
+  exercise_id INT NOT NULL REFERENCES exercises(id) ON DELETE RESTRICT,
+  reps        INT NOT NULL CHECK (reps >= 0),
+  weight      NUMERIC(8, 2) NOT NULL DEFAULT 0 CHECK (weight >= 0),
+  set_order   INT NOT NULL DEFAULT 0,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_sessions_date ON workout_sessions (occurred_on DESC);
+CREATE INDEX idx_sets_session ON workout_sets (session_id);
+CREATE INDEX idx_sets_exercise ON workout_sets (exercise_id);
+
+INSERT INTO exercises (name, slug, muscle_group, equipment, sort_order) VALUES
+  ('Bench Press',    'bench-press',    'Chest',     'Barbell',    1),
+  ('Squat',          'squat',          'Legs',      'Barbell',    2),
+  ('Deadlift',       'deadlift',       'Back',      'Barbell',    3),
+  ('Overhead Press', 'overhead-press', 'Shoulders', 'Barbell',    4),
+  ('Pull Up',        'pull-up',        'Back',      'Bodyweight', 5),
+  ('Bicep Curl',     'bicep-curl',     'Arms',      'Dumbbell',   6);

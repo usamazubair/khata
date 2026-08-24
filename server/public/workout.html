@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Khata — Workout</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <main id="app" hidden>
+    <nav id="navbar" class="navbar"></nav>
+    <div class="page-wrap">
+
+      <header class="top">
+        <div>
+          <p class="eyebrow">Workout</p>
+          <h1>Overview</h1>
+        </div>
+      </header>
+
+      <div id="stat-grid" class="stat-grid"></div>
+
+      <section class="two-col">
+        <div class="card">
+          <div class="label-sm" style="margin-bottom:10px;">Volume by exercise — this week</div>
+          <div id="exercise-bars" class="bars"></div>
+        </div>
+        <div class="card">
+          <div class="label-sm" style="margin-bottom:10px;">Recent sessions</div>
+          <div id="recent-list"></div>
+        </div>
+      </section>
+
+      <p class="footnote">Volume is weight moved — reps × weight, summed across every set.</p>
+    </div>
+  </main>
+
+<script src="common.js"></script>
+<script src="workout.js"></script>
+</body>
+</html>

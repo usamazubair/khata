@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Khata — Session</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <main id="app" hidden>
+    <nav id="navbar" class="navbar"></nav>
+    <div class="page-wrap">
+
+      <header class="top">
+        <div>
+          <p class="eyebrow" id="session-date">Workout</p>
+          <h1 id="session-name">—</h1>
+        </div>
+        <a class="btn btn-ghost" href="sessions.html">‹ All sessions</a>
+      </header>
+
+      <div id="stat-grid" class="stat-grid"></div>
+
+      <div class="crud-layout">
+        <div class="table-wrap">
+          <table class="data">
+            <thead><tr><th>#</th><th>Exercise</th><th>Reps</th><th>Weight</th><th>Volume</th><th></th></tr></thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+
+        <div class="form-card">
+          <h2 id="form-title">Log a set</h2>
+          <p id="form-error" class="form-error" hidden></p>
+          <p id="no-exercise-hint" class="form-hint" hidden>
+            No active exercises yet — <a href="exercises.html">add one first</a>.
+          </p>
+          <form id="set-form">
+            <input type="hidden" id="s-id" />
+            <div class="field-row">
+              <label for="s-exercise">Exercise</label>
+              <select id="s-exercise" required></select>
+            </div>
+            <div class="field-grid">
+              <div class="field-row">
+                <label for="s-reps">Reps</label>
+                <input id="s-reps" type="number" min="0" step="1" required />
+              </div>
+              <div class="field-row">
+                <label for="s-weight">Weight (kg)</label>
+                <input id="s-weight" type="number" min="0" step="0.5" />
+              </div>
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary" id="set-save">Add set</button>
+              <button type="button" id="cancel-edit" class="btn btn-ghost" hidden>Cancel edit</button>
+            </div>
+          </form>
+          <p class="form-hint" style="margin-top:14px;">
+            Logging the same exercise again repeats the last reps and weight, so a straight-sets
+            workout is one tap per set.
+          </p>
+        </div>
+      </div>
+
+      <section style="margin-top:22px;">
+        <div class="card">
+          <div class="label-sm" style="margin-bottom:8px;">Session notes</div>
+          <textarea id="session-notes" class="notes-box" placeholder="How did it go?"></textarea>
+          <div class="form-actions" style="margin-top:10px;">
+            <button id="save-notes" class="btn btn-ghost">Save notes</button>
+            <span id="notes-saved" class="meta" style="margin:0;align-self:center;" hidden>Saved.</span>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+<script src="common.js"></script>
+<script src="session.js"></script>
+</body>
+</html>

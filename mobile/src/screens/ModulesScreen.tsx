@@ -36,10 +36,12 @@ export default function ModulesScreen({ navigation }: any) {
     setRefreshing(false);
   }
 
+  // Each module has its own hand-built stack, keyed off its slug.
+  const ROUTES: Record<string, string> = { transactions: "Transactions", workout: "Workout" };
+
   function open(m: Module) {
-    // Khata has hand-built screens; generic modules render from their schema.
-    if (m.kind === "system" && m.slug === "khata") navigation.navigate("Khata");
-    else navigation.navigate("Sections", { moduleId: m.id, name: m.name, icon: m.icon });
+    const route = ROUTES[m.slug];
+    if (route) navigation.navigate(route);
   }
 
   return (

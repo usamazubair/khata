@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Khata — Exercises</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <main id="app" hidden>
+    <nav id="navbar" class="navbar"></nav>
+    <div class="page-wrap">
+
+      <header class="top">
+        <div>
+          <p class="eyebrow">Workout</p>
+          <h1>Exercises</h1>
+        </div>
+      </header>
+      <p class="form-hint">Your exercise library. Deactivated exercises stay in past sessions but stop appearing when you log new sets.</p>
+
+      <div class="crud-layout">
+        <div>
+          <div class="toolbar">
+            <input id="search" class="search-input" type="search" placeholder="Search exercises…" />
+          </div>
+          <div class="table-wrap">
+            <table class="data">
+              <thead><tr><th>Name</th><th>Muscle group</th><th>Equipment</th><th>Status</th><th></th></tr></thead>
+              <tbody id="rows"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="form-card">
+          <h2 id="form-title">Add exercise</h2>
+          <p id="form-error" class="form-error" hidden></p>
+          <form id="item-form">
+            <input type="hidden" id="f-id" />
+            <div class="field-row">
+              <label for="f-name">Name</label>
+              <input id="f-name" required placeholder="Bench Press" />
+            </div>
+            <div class="field-grid">
+              <div class="field-row">
+                <label for="f-muscle">Muscle group</label>
+                <input id="f-muscle" placeholder="Chest" />
+              </div>
+              <div class="field-row">
+                <label for="f-equipment">Equipment</label>
+                <input id="f-equipment" placeholder="Barbell" />
+              </div>
+            </div>
+            <div class="field-row">
+              <label for="f-notes">Notes</label>
+              <textarea id="f-notes" placeholder="Form cues, setup, anything worth remembering"></textarea>
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary">Save</button>
+              <button type="button" id="cancel-edit" class="btn btn-ghost" hidden>Cancel edit</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+<script src="common.js"></script>
+<script src="exercises.js"></script>
+</body>
+</html>

@@ -127,19 +127,25 @@ export const api = {
     list: () => request(`/api/goals?active=true`),
   },
 
-  // The generic engine: sections describe a module's pages, records are rows.
-  sections: {
-    list: (moduleId: number) => request(`/api/modules/${moduleId}/sections?active=true`),
+  exercises: {
+    list: (activeOnly = true) => request(`/api/exercises${activeOnly ? "?active=true" : ""}`),
   },
 
-  records: {
-    list: (sectionId: number, params: Record<string, string> = {}) =>
-      request(`/api/sections/${sectionId}/records?${new URLSearchParams({ active: "true", ...params }).toString()}`),
-    create: (sectionId: number, data: object) =>
-      request(`/api/sections/${sectionId}/records`, { method: "POST", body: JSON.stringify({ data }) }),
-    update: (id: number, data: object) =>
-      request(`/api/records/${id}`, { method: "PUT", body: JSON.stringify({ data }) }),
-    remove: (id: number) => request(`/api/records/${id}`, { method: "DELETE" }),
+  workouts: {
+    summary: () => request("/api/workouts/summary"),
+    sessions: (params: Record<string, string> = {}) =>
+      request(`/api/workouts/sessions?${new URLSearchParams(params).toString()}`),
+    session: (id: number) => request(`/api/workouts/sessions/${id}`),
+    createSession: (body: object) =>
+      request("/api/workouts/sessions", { method: "POST", body: JSON.stringify(body) }),
+    updateSession: (id: number, body: object) =>
+      request(`/api/workouts/sessions/${id}`, { method: "PUT", body: JSON.stringify(body) }),
+    removeSession: (id: number) => request(`/api/workouts/sessions/${id}`, { method: "DELETE" }),
+    addSet: (sessionId: number, body: object) =>
+      request(`/api/workouts/sessions/${sessionId}/sets`, { method: "POST", body: JSON.stringify(body) }),
+    updateSet: (id: number, body: object) =>
+      request(`/api/workouts/sets/${id}`, { method: "PUT", body: JSON.stringify(body) }),
+    removeSet: (id: number) => request(`/api/workouts/sets/${id}`, { method: "DELETE" }),
   },
 
   summary: (month: string) => request(`/api/summary?month=${month}`),

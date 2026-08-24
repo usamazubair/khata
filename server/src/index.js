@@ -3,18 +3,19 @@ const path = require("path");
 const express = require("express");
 const cors = require("cors");
 const { requireAuth, bootstrapAdmin } = require("./auth");
+const { requireModule } = require("./moduleAccess");
 
 const auth = require("./routes/auth");
 const modules = require("./routes/modules");
 const users = require("./routes/users");
-const sections = require("./routes/sections");
-const records = require("./routes/records");
 const categories = require("./routes/categories");
 const transactions = require("./routes/transactions");
 const fixedExpenses = require("./routes/fixedExpenses");
 const budgets = require("./routes/budgets");
 const goals = require("./routes/goals");
 const summary = require("./routes/summary");
+const exercises = require("./routes/exercises");
+const workouts = require("./routes/workouts");
 
 const app = express();
 app.use(cors());
@@ -27,16 +28,21 @@ app.use("/api/auth", auth);
 app.use("/api", requireAuth);
 app.use("/api/modules", modules);
 app.use("/api/users", users);
-// These two mount several paths each (/modules/:id/sections, /sections/:id,
-// /fields/:id, /records/:id), so they sit at the /api root.
-app.use("/api", sections);
-app.use("/api", records);
-app.use("/api/categories", categories);
-app.use("/api/transactions", transactions);
-app.use("/api/fixed-expenses", fixedExpenses);
-app.use("/api/budgets", budgets);
-app.use("/api/goals", goals);
-app.use("/api/summary", summary);
+
+// Each module's endpoints are gated on its access grant, so switching a module
+// off for someone on the Users page actually blocks the data — it doesn't just
+// hide the card.
+const transactionsModule = requireModule("transactions");
+app.use("/api/categories", transactionsModule, categories);
+app.use("/api/transactions", transactionsModule, transactions);
+app.use("/api/fixed-expenses", transactionsModule, fixedExpenses);
+app.use("/api/budgets", transactionsModule, budgets);
+app.use("/api/goals", transactionsModule, goals);
+app.use("/api/summary", transactionsModule, summary);
+
+const workoutModule = requireModule("workout");
+app.use("/api/exercises", workoutModule, exercises);
+app.use("/api/workouts", workoutModule, workouts);
 
 // Web dashboard (static files; the client holds a JWT from /api/auth/login).
 app.use(express.static(path.join(__dirname, "..", "public")));

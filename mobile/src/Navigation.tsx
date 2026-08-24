@@ -4,18 +4,19 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "./theme";
 
 import ModulesScreen from "./screens/ModulesScreen";
-import SectionsScreen from "./screens/SectionsScreen";
-import RecordsScreen from "./screens/RecordsScreen";
 import HomeScreen from "./screens/HomeScreen";
 import AddScreen from "./screens/AddScreen";
 import TransactionsScreen from "./screens/TransactionsScreen";
 import InsightsScreen from "./screens/InsightsScreen";
 import SettingsScreen from "./screens/SettingsScreen";
+import WorkoutHomeScreen from "./screens/WorkoutHomeScreen";
+import WorkoutSessionsScreen from "./screens/WorkoutSessionsScreen";
+import WorkoutSessionScreen from "./screens/WorkoutSessionScreen";
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
-const ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
+const TRANSACTION_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   Home: "home-outline",
   Transactions: "list-outline",
   Add: "add-circle",
@@ -23,22 +24,43 @@ const ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   Settings: "settings-outline",
 };
 
-function KhataTabs() {
+const WORKOUT_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
+  "This week": "flame-outline",
+  Sessions: "barbell-outline",
+  Settings: "settings-outline",
+};
+
+function tabScreenOptions(t: ReturnType<typeof useTheme>, icons: Record<string, keyof typeof Ionicons.glyphMap>) {
+  return ({ route }: any) => ({
+    headerShown: false,
+    tabBarActiveTintColor: t.accent,
+    tabBarInactiveTintColor: t.inkMuted,
+    tabBarStyle: { backgroundColor: t.page2, borderTopColor: t.rule },
+    tabBarIcon: ({ color, size }: any) => (
+      <Ionicons name={icons[route.name] ?? "ellipse-outline"} size={size} color={color} />
+    ),
+  });
+}
+
+function TransactionsTabs() {
   const t = useTheme();
   return (
-    <Tab.Navigator
-      screenOptions={({ route }) => ({
-        headerShown: false,
-        tabBarActiveTintColor: t.accent,
-        tabBarInactiveTintColor: t.inkMuted,
-        tabBarStyle: { backgroundColor: t.page2, borderTopColor: t.rule },
-        tabBarIcon: ({ color, size }) => <Ionicons name={ICONS[route.name]} size={size} color={color} />,
-      })}
-    >
+    <Tab.Navigator screenOptions={tabScreenOptions(t, TRANSACTION_ICONS)}>
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Transactions" component={TransactionsScreen} />
       <Tab.Screen name="Add" component={AddScreen} options={{ tabBarLabel: "Add" }} />
       <Tab.Screen name="Insights" component={InsightsScreen} />
+      <Tab.Screen name="Settings" component={SettingsScreen} />
+    </Tab.Navigator>
+  );
+}
+
+function WorkoutTabs() {
+  const t = useTheme();
+  return (
+    <Tab.Navigator screenOptions={tabScreenOptions(t, WORKOUT_ICONS)}>
+      <Tab.Screen name="This week" component={WorkoutHomeScreen} />
+      <Tab.Screen name="Sessions" component={WorkoutSessionsScreen} />
       <Tab.Screen name="Settings" component={SettingsScreen} />
     </Tab.Navigator>
   );
@@ -56,17 +78,9 @@ export default function RootNavigator() {
       }}
     >
       <Stack.Screen name="Modules" component={ModulesScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="Khata" component={KhataTabs} options={{ title: "Khata" }} />
-      <Stack.Screen
-        name="Sections"
-        component={SectionsScreen}
-        options={({ route }: any) => ({ title: route.params?.name || "Module" })}
-      />
-      <Stack.Screen
-        name="Records"
-        component={RecordsScreen}
-        options={({ route }: any) => ({ title: route.params?.section?.name || "Records" })}
-      />
+      <Stack.Screen name="Transactions" component={TransactionsTabs} options={{ title: "Transactions" }} />
+      <Stack.Screen name="Workout" component={WorkoutTabs} options={{ title: "Workout" }} />
+      <Stack.Screen name="WorkoutSession" component={WorkoutSessionScreen} options={{ title: "Workout" }} />
     </Stack.Navigator>
   );
 }

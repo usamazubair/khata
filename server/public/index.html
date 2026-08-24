@@ -14,7 +14,7 @@
 
       <header class="top">
         <div>
-          <p class="eyebrow">Your cupboard</p>
+          <p class="eyebrow">Khata</p>
           <h1>Modules</h1>
         </div>
       </header>
@@ -23,33 +23,6 @@
 
     </div>
   </main>
-
-  <div id="module-dialog" class="dialog-backdrop" hidden>
-    <div class="dialog">
-      <h2 id="dialog-title">Add module</h2>
-      <p id="dialog-error" class="form-error" hidden></p>
-      <form id="module-form">
-        <input type="hidden" id="m-id" />
-        <div class="field-row">
-          <label for="m-name">Module name</label>
-          <input id="m-name" placeholder="TodoList" required />
-        </div>
-        <div class="field-row">
-          <label for="m-description">Description</label>
-          <input id="m-description" placeholder="What lives in this module?" />
-        </div>
-        <div class="field-row">
-          <label for="m-icon">Icon (emoji)</label>
-          <input id="m-icon" placeholder="✅" maxlength="4" />
-        </div>
-        <p class="form-hint">Navigation pages and their fields come next — you'll set those up inside the module.</p>
-        <div class="form-actions">
-          <button type="submit" class="btn btn-primary">Save</button>
-          <button type="button" id="dialog-cancel" class="btn btn-ghost">Cancel</button>
-        </div>
-      </form>
-    </div>
-  </div>
 
 <script src="common.js"></script>
 <script src="home.js"></script>

@@ -1,4 +1,4 @@
-window.khataNav = { module: "khata", active: "categories.html" };
+window.khataNav = { module: "transactions", active: "categories.html" };
 
 const TYPES = ["expense", "fixed", "saved", "budget"];
 const SWATCHES = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#4a3aa7", "#e34948"];

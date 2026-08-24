@@ -6,53 +6,9 @@ export type Module = {
   slug: string;
   description: string;
   icon: string;
-  kind: "system" | "generic";
+  home_page: string | null;
   sort_order: number;
   active: boolean;
-};
-
-export type FieldType =
-  | "text"
-  | "longtext"
-  | "number"
-  | "money"
-  | "date"
-  | "boolean"
-  | "select"
-  | "color"
-  | "relation";
-
-export type Field = {
-  id: number;
-  section_id: number;
-  name: string;
-  key: string;
-  type: FieldType;
-  required: boolean;
-  options: { choices?: string[]; section_id?: number };
-  sort_order: number;
-};
-
-export type Section = {
-  id: number;
-  module_id: number;
-  name: string;
-  slug: string;
-  icon: string;
-  sort_order: number;
-  active: boolean;
-  fields: Field[];
-};
-
-export type RecordRow = {
-  id: number;
-  section_id: number;
-  data: Record<string, any>;
-  active: boolean;
-  created_at: string;
-  updated_at: string;
-  title: string;
-  relations: Record<string, { id: number; label: string }>;
 };
 
 export type Category = {
@@ -119,4 +75,45 @@ export type Summary = {
   archives: { month: string; total: number; count: number }[];
   budgets: Budget[];
   goals: Goal[];
+};
+
+export type Exercise = {
+  id: number;
+  name: string;
+  slug: string;
+  muscle_group: string;
+  equipment: string;
+  notes: string;
+  sort_order: number;
+  active: boolean;
+};
+
+export type WorkoutSet = {
+  id: number;
+  session_id: number;
+  exercise_id: number;
+  exercise_name: string;
+  muscle_group: string;
+  reps: number;
+  weight: string;
+  set_order: number;
+};
+
+export type WorkoutSession = {
+  id: number;
+  name: string;
+  occurred_on: string;
+  notes: string;
+  set_count: number;
+  total_reps: number;
+  volume: number;
+  sets?: WorkoutSet[];
+};
+
+export type WorkoutSummary = {
+  this_week: { sessions: number; volume: number; reps: number };
+  last_week: { sessions: number; volume: number };
+  totals: { total_sessions: number; active_exercises: number; total_sets: number };
+  recent: WorkoutSession[];
+  top_exercises: { name: string; volume: number; sets: number }[];
 };

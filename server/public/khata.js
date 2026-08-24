@@ -1,4 +1,4 @@
-window.khataNav = { module: "khata", active: "khata.html" };
+window.khataNav = { module: "transactions", active: "khata.html" };
 
 let dashMonth = currentMonth();
 
