@@ -53,15 +53,21 @@ export default function HomeScreen({ navigation }: any) {
     >
       <Text style={[styles.wordmark, { color: t.ink, fontFamily: fonts.display }]}>Khata</Text>
 
-      {pendingSms > 0 && (
-        <Pressable onPress={() => navigation.navigate("SmsReview")} style={[styles.banner, { backgroundColor: t.accent }]}>
-          <Ionicons name="scan-outline" size={18} color={t.accentInk} />
-          <Text style={{ color: t.accentInk, fontSize: 13, fontWeight: "600", flex: 1 }}>
-            {pendingSms} transaction{pendingSms === 1 ? "" : "s"} detected from SMS
-          </Text>
-          <Ionicons name="chevron-forward" size={16} color={t.accentInk} />
-        </Pressable>
-      )}
+      <Pressable
+        onPress={() => navigation.navigate("SmsReview")}
+        style={[
+          styles.banner,
+          pendingSms > 0
+            ? { backgroundColor: t.accent }
+            : { backgroundColor: "transparent", borderWidth: 1, borderColor: t.rule },
+        ]}
+      >
+        <Ionicons name="clipboard-outline" size={18} color={pendingSms > 0 ? t.accentInk : t.inkMuted} />
+        <Text style={{ color: pendingSms > 0 ? t.accentInk : t.inkMuted, fontSize: 13, fontWeight: "600", flex: 1 }}>
+          {pendingSms > 0 ? `${pendingSms} waiting to be logged from SMS` : "Log a transaction from SMS"}
+        </Text>
+        <Ionicons name="chevron-forward" size={16} color={pendingSms > 0 ? t.accentInk : t.inkMuted} />
+      </Pressable>
 
       {error && (
         <View style={[styles.card, { backgroundColor: t.page2 }]}>

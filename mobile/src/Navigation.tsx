@@ -135,7 +135,7 @@ export default function RootNavigator() {
         options={({ route }: any) => ({ title: route.params?.name ?? "Tasks" })}
       />
       <Stack.Screen name="WorkoutSession" component={WorkoutSessionScreen} options={{ title: "Workout" }} />
-      <Stack.Screen name="SmsReview" component={SmsReviewScreen} options={{ title: "Detected transactions" }} />
+      <Stack.Screen name="SmsReview" component={SmsReviewScreen} options={{ title: "Log from SMS" }} />
       <Stack.Screen
         name="WorkoutExercise"
         component={WorkoutExerciseScreen}

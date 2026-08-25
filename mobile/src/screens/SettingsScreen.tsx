@@ -14,12 +14,6 @@ import {
   type TimePref,
   type TogglePref,
 } from "../lib/reminders";
-import {
-  getSmsCaptureEnabled,
-  smsCaptureAvailable,
-  startSmsCapture,
-  stopSmsCapture,
-} from "../lib/smsCapture";
 
 const DEFAULTS: ReminderPrefs = {
   workout: { enabled: false, hour: 19, minute: 0 },
@@ -132,46 +126,19 @@ function ReminderCard({
   );
 }
 
-export default function SettingsScreen() {
+export default function SettingsScreen({ navigation }: any) {
   const t = useTheme();
   const { user, serverUrl, signOut } = useAuth();
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [prefs, setPrefs] = useState<ReminderPrefs>(DEFAULTS);
-  const [smsOn, setSmsOn] = useState(false);
-  const [smsBusy, setSmsBusy] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
       getReminderPrefs().then(setPrefs);
-      getSmsCaptureEnabled().then(setSmsOn);
     }, [])
   );
-
-  async function toggleSmsCapture(enabled: boolean) {
-    setSmsBusy(true);
-    try {
-      if (enabled) {
-        const result = await startSmsCapture();
-        if (!result.ok) {
-          Alert.alert(
-            "Couldn't turn this on",
-            result.reason === "SMS permission was not granted."
-              ? "Khata needs SMS permission to see bank alerts. If you denied it and don't get asked again, allow it manually in the phone's app settings for Khata."
-              : result.reason
-          );
-          setSmsOn(false);
-          return;
-        }
-      } else {
-        await stopSmsCapture();
-      }
-      setSmsOn(enabled);
-    } finally {
-      setSmsBusy(false);
-    }
-  }
 
   async function update(next: ReminderPrefs) {
     setPrefs(next);
@@ -237,29 +204,19 @@ export default function SettingsScreen() {
         onChange={(timetable) => update({ ...prefs, timetable })}
       />
 
-      {smsCaptureAvailable && (
-        <>
-          <Text style={[styles.sectionLabel, { color: t.inkMuted }]}>Automatic transactions</Text>
-          <View style={[styles.card, { backgroundColor: t.page2 }]}>
-            <View style={styles.switchRow}>
-              <View style={{ flex: 1, paddingRight: 12 }}>
-                <Text style={{ color: t.ink, fontSize: 14, fontWeight: "600" }}>Detect spending from SMS</Text>
-                <Text style={{ color: t.inkMuted, fontSize: 11.5, marginTop: 3, lineHeight: 16 }}>
-                  When a bank sends a debit-card or purchase alert, Khata pre-fills a transaction for you to
-                  confirm — nothing is logged without a tap. Only catches messages that arrive while the app
-                  is open or running in the background, not while it's been fully closed.
-                </Text>
-              </View>
-              <Switch
-                value={smsOn}
-                onValueChange={toggleSmsCapture}
-                disabled={smsBusy}
-                trackColor={{ true: t.accent, false: t.rule }}
-              />
-            </View>
-          </View>
-        </>
-      )}
+      <Text style={[styles.sectionLabel, { color: t.inkMuted }]}>Log from SMS</Text>
+      <Pressable
+        onPress={() => navigation.navigate("SmsReview")}
+        style={[styles.card, { backgroundColor: t.page2, flexDirection: "row", alignItems: "center" }]}
+      >
+        <View style={{ flex: 1 }}>
+          <Text style={{ color: t.ink, fontSize: 14, fontWeight: "600" }}>Paste a bank SMS</Text>
+          <Text style={{ color: t.inkMuted, fontSize: 11.5, marginTop: 3, lineHeight: 16 }}>
+            Copy a debit-card or purchase alert from your messages app and paste it in — Khata reads the
+            amount and merchant so you just pick a category and confirm.
+          </Text>
+        </View>
+      </Pressable>
 
       <Text style={[styles.sectionLabel, { color: t.inkMuted }]}>Change password</Text>
       <View style={[styles.card, { backgroundColor: t.page2 }]}>

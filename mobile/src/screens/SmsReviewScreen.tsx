@@ -1,18 +1,22 @@
-import { useCallback, useMemo, useState } from "react";
-import { View, Text, Pressable, ScrollView, StyleSheet, Alert, RefreshControl } from "react-native";
+import { useCallback, useState } from "react";
+import { View, Text, TextInput, Pressable, ScrollView, StyleSheet, Alert, RefreshControl } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme, fonts } from "../theme";
 import { api, parseDate } from "../api";
 import { Category } from "../types";
-import { getPending, rememberCategory, recalledCategory, remove, type PendingSms } from "../lib/smsQueue";
+import { parseSms } from "../lib/smsParser";
+import { getPending, rememberCategory, recalledCategory, enqueue, remove, type PendingSms } from "../lib/smsQueue";
 import Dot from "../components/Dot";
 
-/** One detected SMS, waiting for a category before it becomes a real
- *  transaction. Nothing here is logged until you tap "Log it" — a mis-parse
- *  costs you a dismiss, not a wrong number sitting in your budget. */
+/** Paste a bank SMS, and it's parsed into a card below — the same card
+ *  every pending message gets, so pasting several in a row before
+ *  confirming any of them works exactly the same as confirming one right
+ *  away. Nothing is logged until you tap "Log it" on that card. */
 export default function SmsReviewScreen() {
   const t = useTheme();
+  const [text, setText] = useState("");
+  const [pasteError, setPasteError] = useState<string | null>(null);
   const [pending, setPending] = useState<PendingSms[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [chosen, setChosen] = useState<Record<string, number>>({});
@@ -42,6 +46,28 @@ export default function SmsReviewScreen() {
     setRefreshing(true);
     await load();
     setRefreshing(false);
+  }
+
+  async function addFromPaste() {
+    const body = text.trim();
+    if (!body) return;
+    setPasteError(null);
+
+    const parsed = parseSms(body);
+    if (!parsed) {
+      setPasteError(
+        "Didn't recognise this as a bank debit message. Double-check you copied the whole text, or log it manually from Add."
+      );
+      return;
+    }
+
+    const added = await enqueue(parsed);
+    setText("");
+    if (!added) {
+      setPasteError("Already added — that exact message is sitting below.");
+      return;
+    }
+    await load();
   }
 
   async function confirm(item: PendingSms) {
@@ -84,31 +110,57 @@ export default function SmsReviewScreen() {
     <ScrollView
       style={{ backgroundColor: t.paper }}
       contentContainerStyle={styles.container}
+      keyboardShouldPersistTaps="handled"
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={t.accent} />}
     >
-      {pending.length === 0 ? (
-        <View style={styles.empty}>
-          <Ionicons name="checkmark-done-circle-outline" size={30} color={t.inkMuted} />
-          <Text style={{ color: t.inkMuted, fontSize: 13, marginTop: 8, textAlign: "center" }}>
-            Nothing waiting. New bank SMS show up here as soon as Khata sees them.
-          </Text>
-        </View>
-      ) : (
-        pending.map((item) => (
-          <Card
-            key={item.id}
-            item={item}
-            categories={categories}
-            categoryId={chosen[item.id]}
-            onPickCategory={(id) => setChosen((prev) => ({ ...prev, [item.id]: id }))}
-            expanded={!!expanded[item.id]}
-            onToggleExpand={() => setExpanded((prev) => ({ ...prev, [item.id]: !prev[item.id] }))}
-            busy={busyId === item.id}
-            onConfirm={() => confirm(item)}
-            onDismiss={() => dismiss(item)}
-          />
-        ))
+      <Text style={[styles.title, { color: t.ink, fontFamily: fonts.display }]}>Log from SMS</Text>
+      <Text style={{ color: t.inkMuted, fontSize: 12.5, marginBottom: 14, lineHeight: 17 }}>
+        Copy a debit-card or purchase alert from your messages app, paste it below, and pick a category —
+        that's the whole flow. Nothing is logged until you tap "Log it".
+      </Text>
+
+      <View style={[styles.pasteCard, { backgroundColor: t.page2 }]}>
+        <TextInput
+          value={text}
+          onChangeText={(v) => {
+            setText(v);
+            if (pasteError) setPasteError(null);
+          }}
+          placeholder="Paste the bank SMS here…"
+          placeholderTextColor={t.inkMuted}
+          multiline
+          style={[styles.pasteInput, { borderColor: t.rule, color: t.ink, backgroundColor: t.page }]}
+        />
+        {pasteError && <Text style={{ color: t.status.critical, fontSize: 11.5, marginTop: 8 }}>{pasteError}</Text>}
+        <Pressable
+          onPress={addFromPaste}
+          disabled={!text.trim()}
+          style={[styles.pasteButton, { backgroundColor: t.accent, opacity: text.trim() ? 1 : 0.5 }]}
+        >
+          <Text style={{ color: t.accentInk, fontWeight: "600", fontSize: 13.5 }}>Add</Text>
+        </Pressable>
+      </View>
+
+      {pending.length > 0 && (
+        <Text style={[styles.sectionLabel, { color: t.inkMuted }]}>
+          Waiting to be logged ({pending.length})
+        </Text>
       )}
+
+      {pending.map((item) => (
+        <Card
+          key={item.id}
+          item={item}
+          categories={categories}
+          categoryId={chosen[item.id]}
+          onPickCategory={(id) => setChosen((prev) => ({ ...prev, [item.id]: id }))}
+          expanded={!!expanded[item.id]}
+          onToggleExpand={() => setExpanded((prev) => ({ ...prev, [item.id]: !prev[item.id] }))}
+          busy={busyId === item.id}
+          onConfirm={() => confirm(item)}
+          onDismiss={() => dismiss(item)}
+        />
+      ))}
     </ScrollView>
   );
 }
@@ -199,7 +251,11 @@ function Card({
 
 const styles = StyleSheet.create({
   container: { padding: 18, paddingBottom: 40, gap: 12 },
-  empty: { alignItems: "center", paddingTop: 60, paddingHorizontal: 30 },
+  title: { fontSize: 22 },
+  pasteCard: { borderRadius: 14, padding: 14, marginBottom: 4 },
+  pasteInput: { borderWidth: 1, borderRadius: 10, padding: 12, fontSize: 13, minHeight: 90, textAlignVertical: "top" },
+  pasteButton: { marginTop: 10, borderRadius: 10, paddingVertical: 11, alignItems: "center" },
+  sectionLabel: { fontSize: 10, textTransform: "uppercase", letterSpacing: 0.6, marginTop: 6 },
   card: { borderRadius: 14, padding: 15 },
   cardHead: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
   label: { fontSize: 10, textTransform: "uppercase", letterSpacing: 0.6, marginTop: 14, marginBottom: 7 },

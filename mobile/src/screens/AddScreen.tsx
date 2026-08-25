@@ -84,7 +84,12 @@ export default function AddScreen({ navigation }: any) {
 
   return (
     <ScrollView style={{ backgroundColor: t.paper }} contentContainerStyle={styles.container}>
-      <Text style={[styles.title, { color: t.ink, fontFamily: fonts.display }]}>New entry</Text>
+      <View style={styles.titleRow}>
+        <Text style={[styles.title, { color: t.ink, fontFamily: fonts.display }]}>New entry</Text>
+        <Pressable onPress={() => navigation.navigate("SmsReview")} hitSlop={6}>
+          <Text style={{ color: t.accent, fontSize: 12.5, fontWeight: "600" }}>Paste SMS instead</Text>
+        </Pressable>
+      </View>
 
       {error ? (
         <Text style={{ color: t.inkMuted, fontSize: 13 }}>{error}</Text>
@@ -184,7 +189,8 @@ export default function AddScreen({ navigation }: any) {
 
 const styles = StyleSheet.create({
   container: { padding: 18, paddingBottom: 60 },
-  title: { fontSize: 22, marginBottom: 16 },
+  titleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 16 },
+  title: { fontSize: 22 },
   amountRow: { flexDirection: "row", alignItems: "flex-end", justifyContent: "center", gap: 6, marginBottom: 22 },
   currency: { fontSize: 16, marginBottom: 8 },
   amountInput: { fontSize: 44, fontWeight: "600", borderBottomWidth: 2, minWidth: 140, textAlign: "center", paddingBottom: 4 },
