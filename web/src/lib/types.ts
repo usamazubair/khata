@@ -146,3 +146,56 @@ export type WorkoutSummary = {
   recent: WorkoutSession[];
   top_exercises: { name: string; volume: number; sets: number }[];
 };
+
+/* ── Timetable ───────────────────────────────────────────────────────────
+   day_of_week follows Postgres: 0 = Sunday … 6 = Saturday. event_date null
+   means the entry repeats every week on that day; a date means it happens
+   once. Times are "HH:MM" strings — a wall clock, not an instant. */
+export type TimetableEvent = {
+  id: number;
+  title: string;
+  notes: string;
+  location: string;
+  color: string;
+  day_of_week: number;
+  event_date: string | null;
+  starts_at: string;
+  ends_at: string;
+  remind_minutes: number | null;
+  active: boolean;
+};
+
+/** One expanded occurrence from /api/timetable/occurrences. */
+export type TimetableOccurrence = TimetableEvent & { date: string };
+
+/* ── Todo ────────────────────────────────────────────────────────────── */
+export type TodoList = {
+  id: number;
+  name: string;
+  slug: string;
+  icon: string;
+  color: string;
+  sort_order: number;
+  active: boolean;
+  open_count: number;
+  done_count: number;
+  overdue_count: number;
+  next_due: string | null;
+};
+
+export type TodoItem = {
+  id: number;
+  list_id: number;
+  title: string;
+  notes: string;
+  due_date: string | null;
+  /** 0 none, 1 medium, 2 high. */
+  priority: number;
+  done: boolean;
+  done_at: string | null;
+  sort_order: number;
+  created_at: string;
+  list_name: string;
+  list_color: string;
+  list_icon: string;
+};

@@ -11,10 +11,17 @@ import type { Module } from "@/lib/types";
 
 // Slug -> the client route its card opens, and the colour it wears. Giving
 // each module its own hue makes the home screen readable at a glance.
-const ROUTES: Record<string, string> = { transactions: "/transactions", workout: "/workout" };
+const ROUTES: Record<string, string> = {
+  transactions: "/transactions",
+  workout: "/workout",
+  timetable: "/timetable",
+  todo: "/todo",
+};
 const TINTS: Record<string, string> = {
   transactions: "var(--series-1)",
   workout: "var(--series-2)",
+  timetable: "var(--series-7)",
+  todo: "var(--series-3)",
 };
 const FALLBACK_TINT = "var(--accent-3)";
 

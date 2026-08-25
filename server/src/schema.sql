@@ -56,7 +56,9 @@ CREATE TABLE module_access (
 
 INSERT INTO modules (name, slug, description, icon, home_page, sort_order) VALUES
   ('Transactions', 'transactions', 'Expenses, budgets, goals and fixed bills', '📒', 'khata.html', 1),
-  ('Workout',      'workout',      'Exercises, sessions and sets',             '🏋️', 'workout.html', 2);
+  ('Workout',      'workout',      'Exercises, sessions and sets',             '🏋️', 'workout.html', 2),
+  ('Timetable',    'timetable',    'Your week, hour by hour',                  '🗓️', NULL,           3),
+  ('Todo',         'todo',         'Lists, and everything on them',            '✅', NULL,           4);
 
 -- ── Transactions module tables ──────────────────────────────────────────
 
@@ -178,3 +180,67 @@ INSERT INTO exercises (name, slug, muscle_group, equipment, sort_order) VALUES
   ('Overhead Press', 'overhead-press', 'Shoulders', 'Barbell',    4),
   ('Pull Up',        'pull-up',        'Back',      'Bodyweight', 5),
   ('Bicep Curl',     'bicep-curl',     'Arms',      'Dumbbell',   6);
+
+-- ── Timetable module tables ─────────────────────────────────────────────
+-- One row is one entry on the grid. event_date decides which kind it is:
+-- NULL means it repeats every week on day_of_week (a class, a standing
+-- meeting, gym); a date means it happens once. day_of_week is stored either
+-- way -- derived from the date for one-offs -- so the week view can select on
+-- a single column instead of branching.
+--
+-- day_of_week follows Postgres EXTRACT(DOW): 0 = Sunday ... 6 = Saturday.
+
+CREATE TABLE timetable_events (
+  id             SERIAL PRIMARY KEY,
+  title          TEXT NOT NULL,
+  notes          TEXT NOT NULL DEFAULT '',
+  location       TEXT NOT NULL DEFAULT '',
+  color          TEXT NOT NULL DEFAULT '#2f6bff',
+  day_of_week    SMALLINT NOT NULL CHECK (day_of_week BETWEEN 0 AND 6),
+  event_date     DATE,
+  starts_at      TIME NOT NULL,
+  ends_at        TIME NOT NULL,
+  remind_minutes INT CHECK (remind_minutes IS NULL OR remind_minutes >= 0),
+  active         BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT timetable_ends_after_start CHECK (ends_at > starts_at)
+);
+
+CREATE INDEX idx_timetable_day ON timetable_events (day_of_week, starts_at);
+CREATE INDEX idx_timetable_date ON timetable_events (event_date) WHERE event_date IS NOT NULL;
+
+-- ── Todo module tables ──────────────────────────────────────────────────
+-- A list is the card you pick first (Car, Home, Groceries); items live on it.
+
+CREATE TABLE todo_lists (
+  id         SERIAL PRIMARY KEY,
+  name       TEXT NOT NULL UNIQUE,
+  slug       TEXT NOT NULL UNIQUE,
+  icon       TEXT NOT NULL DEFAULT '🗂️',
+  color      TEXT NOT NULL DEFAULT '#2f6bff',
+  sort_order INT NOT NULL DEFAULT 0,
+  active     BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE todo_items (
+  id         SERIAL PRIMARY KEY,
+  list_id    INT NOT NULL REFERENCES todo_lists(id) ON DELETE CASCADE,
+  title      TEXT NOT NULL,
+  notes      TEXT NOT NULL DEFAULT '',
+  due_date   DATE,
+  -- 0 none, 1 medium, 2 high. Kept numeric so ORDER BY sorts it directly.
+  priority   SMALLINT NOT NULL DEFAULT 0 CHECK (priority BETWEEN 0 AND 2),
+  done       BOOLEAN NOT NULL DEFAULT FALSE,
+  done_at    TIMESTAMPTZ,
+  sort_order INT NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_todo_items_list ON todo_items (list_id, done, sort_order);
+CREATE INDEX idx_todo_items_due ON todo_items (due_date) WHERE due_date IS NOT NULL AND NOT done;
+
+INSERT INTO todo_lists (name, slug, icon, color, sort_order) VALUES
+  ('Home',      'home',      '🏠', '#2f6bff', 1),
+  ('Car',       'car',       '🚗', '#f4661f', 2),
+  ('Groceries', 'groceries', '🛒', '#00b37e', 3);

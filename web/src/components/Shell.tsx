@@ -28,6 +28,22 @@ export const MODULE_NAV = {
       { to: "/workout/exercises", label: "Exercises" },
     ],
   },
+  timetable: {
+    icon: "🗓️",
+    label: "Timetable",
+    links: [
+      { to: "/timetable", label: "Week", end: true },
+      { to: "/timetable/all", label: "All entries" },
+    ],
+  },
+  todo: {
+    icon: "✅",
+    label: "Todo",
+    links: [
+      { to: "/todo", label: "Board", end: true },
+      { to: "/todo/lists", label: "Lists" },
+    ],
+  },
 } as const;
 
 export type ModuleKey = keyof typeof MODULE_NAV;
@@ -110,7 +126,16 @@ export function Navbar({ module, admin }: { module?: ModuleKey; admin?: boolean 
 }
 
 /** Wraps a page's content so route changes animate consistently. */
-export function Page({ children, className }: { children: React.ReactNode; className?: string }) {
+export function Page({
+  children,
+  className,
+  wide,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  /** The week grid needs more room than a reading-width page. */
+  wide?: boolean;
+}) {
   const { pathname } = useLocation();
   return (
     <motion.main
@@ -119,7 +144,7 @@ export function Page({ children, className }: { children: React.ReactNode; class
       initial="hidden"
       animate="show"
       exit="exit"
-      className={cx("mx-auto max-w-5xl px-5 pt-8 pb-16", className)}
+      className={cx("mx-auto px-5 pt-8 pb-16", wide ? "max-w-7xl" : "max-w-5xl", className)}
     >
       {children}
     </motion.main>

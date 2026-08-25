@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { Link, useParams } from "react-router-dom";
 import { ChevronLeft } from "lucide-react";
-import { del, get, kg, post, put } from "@/lib/api";
+import { del, get, kg, parseDate, post, put } from "@/lib/api";
 import { rowItem, staggerParent } from "@/lib/motion";
 import { Navbar, Page } from "@/components/Shell";
 import { CrudLayout } from "@/components/CrudLayout";
@@ -113,7 +113,7 @@ export default function SessionDetail() {
       <Navbar module="workout" />
       <Page>
         <PageHeader
-          eyebrow={session ? new Date(session.occurred_on).toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "long", day: "numeric" }) : "Workout"}
+          eyebrow={session ? parseDate(session.occurred_on).toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "long", day: "numeric" }) : "Workout"}
           title={session?.name || "Workout"}
         >
           <Link

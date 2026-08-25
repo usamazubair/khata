@@ -14,6 +14,9 @@ import WorkoutSessionsScreen from "./screens/WorkoutSessionsScreen";
 import WorkoutSessionScreen from "./screens/WorkoutSessionScreen";
 import WorkoutExercisesScreen from "./screens/WorkoutExercisesScreen";
 import WorkoutExerciseScreen from "./screens/WorkoutExerciseScreen";
+import TimetableScreen from "./screens/TimetableScreen";
+import TodoListsScreen from "./screens/TodoListsScreen";
+import TodoListScreen from "./screens/TodoListScreen";
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -23,6 +26,16 @@ const TRANSACTION_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   Transactions: "list-outline",
   Add: "add-circle",
   Insights: "stats-chart-outline",
+  Settings: "settings-outline",
+};
+
+const TIMETABLE_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
+  Agenda: "calendar-outline",
+  Settings: "settings-outline",
+};
+
+const TODO_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
+  Lists: "albums-outline",
   Settings: "settings-outline",
 };
 
@@ -70,6 +83,26 @@ function WorkoutTabs() {
   );
 }
 
+function TimetableTabs() {
+  const t = useTheme();
+  return (
+    <Tab.Navigator screenOptions={tabScreenOptions(t, TIMETABLE_ICONS)}>
+      <Tab.Screen name="Agenda" component={TimetableScreen} />
+      <Tab.Screen name="Settings" component={SettingsScreen} />
+    </Tab.Navigator>
+  );
+}
+
+function TodoTabs() {
+  const t = useTheme();
+  return (
+    <Tab.Navigator screenOptions={tabScreenOptions(t, TODO_ICONS)}>
+      <Tab.Screen name="Lists" component={TodoListsScreen} />
+      <Tab.Screen name="Settings" component={SettingsScreen} />
+    </Tab.Navigator>
+  );
+}
+
 export default function RootNavigator() {
   const t = useTheme();
   return (
@@ -84,6 +117,13 @@ export default function RootNavigator() {
       <Stack.Screen name="Modules" component={ModulesScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Transactions" component={TransactionsTabs} options={{ title: "Transactions" }} />
       <Stack.Screen name="Workout" component={WorkoutTabs} options={{ title: "Workout" }} />
+      <Stack.Screen name="Timetable" component={TimetableTabs} options={{ title: "Timetable" }} />
+      <Stack.Screen name="Todo" component={TodoTabs} options={{ title: "Todo" }} />
+      <Stack.Screen
+        name="TodoList"
+        component={TodoListScreen}
+        options={({ route }: any) => ({ title: route.params?.name ?? "Tasks" })}
+      />
       <Stack.Screen name="WorkoutSession" component={WorkoutSessionScreen} options={{ title: "Workout" }} />
       <Stack.Screen
         name="WorkoutExercise"

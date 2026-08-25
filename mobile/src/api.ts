@@ -159,6 +159,26 @@ export const api = {
   },
 
   summary: (month: string) => request(`/api/summary?month=${month}`),
+
+  // Entries are built on the web dashboard; the app reads the agenda and
+  // schedules the reminders from it.
+  timetable: {
+    list: () => request(`/api/timetable?active=true`),
+    occurrences: (from: string, days: number) =>
+      request(`/api/timetable/occurrences?${new URLSearchParams({ from, days: String(days) }).toString()}`),
+  },
+
+  // Lists are shaped on the web; tasks are read and written here, because
+  // ticking things off is the whole point of having it on a phone.
+  todo: {
+    lists: () => request(`/api/todo/lists?active=true`),
+    items: (params: Record<string, string> = {}) =>
+      request(`/api/todo/items?${new URLSearchParams(params).toString()}`),
+    addItem: (body: object) => request("/api/todo/items", { method: "POST", body: JSON.stringify(body) }),
+    updateItem: (id: number, body: object) =>
+      request(`/api/todo/items/${id}`, { method: "PUT", body: JSON.stringify(body) }),
+    removeItem: (id: number) => request(`/api/todo/items/${id}`, { method: "DELETE" }),
+  },
 };
 
 export type User = {
@@ -171,6 +191,15 @@ export type User = {
 
 export function currentMonth() {
   return new Date().toISOString().slice(0, 7);
+}
+
+/** A DATE column arrives as "YYYY-MM-DD" — a calendar date with no timezone.
+ *  `new Date("2026-08-20")` reads that as UTC midnight, which lands on the
+ *  19th anywhere west of Greenwich, so build it at local midnight instead.
+ *  Full timestamps (created_at) still parse normally. */
+export function parseDate(value: string) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : new Date(value);
 }
 
 export function money(n: number | string) {

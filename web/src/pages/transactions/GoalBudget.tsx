@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { Link } from "react-router-dom";
-import { currentMonth, del, get, money, post, put, seriesColor } from "@/lib/api";
+import { currentMonth, del, get, money, parseDate, post, put, seriesColor } from "@/lib/api";
 import { rowItem } from "@/lib/motion";
 import { Navbar, Page } from "@/components/Shell";
 import { CrudLayout } from "@/components/CrudLayout";
@@ -190,7 +190,7 @@ export default function GoalBudget({ kind }: { kind: Kind }) {
                       {cfg.hasTargetDate && (
                         <td className="table-cell text-muted">
                           {r.target_date
-                            ? new Date(r.target_date).toLocaleDateString(undefined, { month: "short", year: "numeric" })
+                            ? parseDate(r.target_date).toLocaleDateString(undefined, { month: "short", year: "numeric" })
                             : "—"}
                         </td>
                       )}

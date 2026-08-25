@@ -137,7 +137,7 @@ export function MediaUpload({
             type="button"
             variant="ghost"
             disabled={disabled || busy}
-            className={cx("hover:!border-critical hover:!text-critical")}
+            className={cx("hover:border-critical! hover:text-critical!")}
             onClick={() => onChange({ media_url: null, media_public_id: null, media_type: null })}
           >
             <Trash2 size={14} />

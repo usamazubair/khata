@@ -12,12 +12,59 @@ import {
   setReminderPrefs,
   type ReminderPrefs,
   type TimePref,
+  type TogglePref,
 } from "../lib/reminders";
 
 const DEFAULTS: ReminderPrefs = {
   workout: { enabled: false, hour: 19, minute: 0 },
   bills: { enabled: false, hour: 10, minute: 0 },
+  timetable: { enabled: false },
 };
+
+/** Asks for permission the first time it's switched on; without that the
+ *  toggle would look enabled while nothing could ever fire. */
+async function allow(enabled: boolean) {
+  if (!enabled) return true;
+  if (await ensurePermission()) return true;
+  Alert.alert(
+    "Notifications are off",
+    "Allow notifications for Khata in your phone's settings, then turn this back on."
+  );
+  return false;
+}
+
+/** A reminder whose timing lives on the thing being reminded about, so there
+ *  is no clock to set here — just on or off. */
+function ToggleCard({
+  title,
+  description,
+  pref,
+  onChange,
+}: {
+  title: string;
+  description: string;
+  pref: TogglePref;
+  onChange: (next: TogglePref) => void;
+}) {
+  const t = useTheme();
+  return (
+    <View style={[styles.card, { backgroundColor: t.page2 }]}>
+      <View style={styles.switchRow}>
+        <View style={{ flex: 1, paddingRight: 12 }}>
+          <Text style={{ color: t.ink, fontSize: 14, fontWeight: "600" }}>{title}</Text>
+          <Text style={{ color: t.inkMuted, fontSize: 11.5, marginTop: 3, lineHeight: 16 }}>{description}</Text>
+        </View>
+        <Switch
+          value={pref.enabled}
+          onValueChange={async (enabled) => {
+            if (await allow(enabled)) onChange({ enabled });
+          }}
+          trackColor={{ true: t.accent, false: t.rule }}
+        />
+      </View>
+    </View>
+  );
+}
 
 /** One reminder: a switch, and — once it's on — the time it fires. */
 function ReminderCard({
@@ -35,13 +82,7 @@ function ReminderCard({
   const [picking, setPicking] = useState(false);
 
   async function toggle(enabled: boolean) {
-    if (enabled && !(await ensurePermission())) {
-      return Alert.alert(
-        "Notifications are off",
-        "Allow notifications for Khata in your phone's settings, then turn this back on."
-      );
-    }
-    onChange({ ...pref, enabled });
+    if (await allow(enabled)) onChange({ ...pref, enabled });
   }
 
   return (
@@ -154,6 +195,13 @@ export default function SettingsScreen() {
         description="For every active bill: one the day before its due date, and another on the day itself if it still isn't logged as paid."
         pref={prefs.bills}
         onChange={(bills) => update({ ...prefs, bills })}
+      />
+      <View style={{ height: 10 }} />
+      <ToggleCard
+        title="Timetable"
+        description="Each entry fires at its own lead time — set that per entry on the web dashboard."
+        pref={prefs.timetable}
+        onChange={(timetable) => update({ ...prefs, timetable })}
       />
 
       <Text style={[styles.sectionLabel, { color: t.inkMuted }]}>Change password</Text>

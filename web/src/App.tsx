@@ -13,6 +13,10 @@ import WorkoutOverview from "@/pages/workout/Overview";
 import Sessions from "@/pages/workout/Sessions";
 import SessionDetail from "@/pages/workout/SessionDetail";
 import Exercises from "@/pages/workout/Exercises";
+import Week from "@/pages/timetable/Week";
+import AllEvents from "@/pages/timetable/AllEvents";
+import Board from "@/pages/todo/Board";
+import TodoLists from "@/pages/todo/Lists";
 
 function AdminOnly({ children }: { children: React.ReactNode }) {
   const { isAdmin } = useAuth();
@@ -39,6 +43,12 @@ function AppRoutes() {
         <Route path="/workout/sessions" element={<Sessions />} />
         <Route path="/workout/sessions/:id" element={<SessionDetail />} />
         <Route path="/workout/exercises" element={<Exercises />} />
+
+        <Route path="/timetable" element={<Week />} />
+        <Route path="/timetable/all" element={<AllEvents />} />
+
+        <Route path="/todo" element={<Board />} />
+        <Route path="/todo/lists" element={<TodoLists />} />
 
         <Route
           path="/users"

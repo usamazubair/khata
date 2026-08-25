@@ -2,37 +2,53 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
 import { api, money } from "../api";
-import { FixedExpense } from "../types";
+import { FixedExpense, TimetableOccurrence } from "../types";
+import { atLocal, formatTime, isoDate } from "./schedule";
 
 const PREFS_KEY = "khata_reminders";
 const LEGACY_WORKOUT_KEY = "khata_workout_reminder";
 
-// Two weeks of individually-scheduled days for the workout nudge. A repeating
-// daily trigger would keep firing forever but can't skip a single day, and
-// one-at-a-time would stop entirely if the app went unopened — this gives both
-// resilience and the ability to drop the days you've already trained.
+// Everything is scheduled as individually-dated notifications rather than
+// repeating triggers: a repeating trigger fires forever but can't skip the day
+// you already trained or the bill you already paid, and a single next-one-only
+// trigger stops dead if the app goes unopened. Rebuilding a rolling window on
+// every foreground gives both.
 const WORKOUT_HORIZON_DAYS = 14;
-// Bills are scheduled the same way, far enough ahead to cover this month's and
-// next month's occurrence of everything.
 const BILL_HORIZON_DAYS = 40;
-// iOS silently drops anything past 64 pending notifications, so the bill half
-// is capped and the soonest ones win.
-const MAX_BILL_NOTIFICATIONS = 40;
+const TIMETABLE_HORIZON_DAYS = 14;
+
+// iOS silently drops anything past 64 pending notifications. Rather than give
+// each kind a fixed slice — which starves whichever you actually use most —
+// everything is planned first, then the soonest 60 win.
+const MAX_SCHEDULED = 60;
 
 export type TimePref = { enabled: boolean; hour: number; minute: number };
-export type ReminderPrefs = { workout: TimePref; bills: TimePref };
+export type TogglePref = { enabled: boolean };
+export type ReminderPrefs = {
+  workout: TimePref;
+  bills: TimePref;
+  /** Timetable entries carry their own lead time, so there's no clock here. */
+  timetable: TogglePref;
+};
 
 const DEFAULTS: ReminderPrefs = {
   workout: { enabled: false, hour: 19, minute: 0 },
   bills: { enabled: false, hour: 10, minute: 0 },
+  timetable: { enabled: false },
 };
+
+type Planned = { when: Date; title: string; body: string; channelId: string; screen: string };
 
 export async function getReminderPrefs(): Promise<ReminderPrefs> {
   try {
     const raw = await AsyncStorage.getItem(PREFS_KEY);
     if (raw) {
       const saved = JSON.parse(raw);
-      return { workout: { ...DEFAULTS.workout, ...saved.workout }, bills: { ...DEFAULTS.bills, ...saved.bills } };
+      return {
+        workout: { ...DEFAULTS.workout, ...saved.workout },
+        bills: { ...DEFAULTS.bills, ...saved.bills },
+        timetable: { ...DEFAULTS.timetable, ...saved.timetable },
+      };
     }
     // Carry over the flat workout-only shape this replaced.
     const legacy = await AsyncStorage.getItem(LEGACY_WORKOUT_KEY);
@@ -69,11 +85,6 @@ export async function ensurePermission(): Promise<boolean> {
   return asked.granted;
 }
 
-function localDateKey(d: Date) {
-  // Local YYYY-MM-DD — toISOString would shift the day in non-UTC zones.
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
 const monthKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 const daysInMonth = (year: number, monthIndex: number) => new Date(year, monthIndex + 1, 0).getDate();
 
@@ -82,7 +93,7 @@ const daysInMonth = (year: number, monthIndex: number) => new Date(year, monthIn
  *  than silently losing it. */
 async function trainedToday(): Promise<boolean> {
   try {
-    const today = localDateKey(new Date());
+    const today = isoDate(new Date());
     const sessions = await api.workouts.sessions({ date_from: today, date_to: today });
     return Array.isArray(sessions) && sessions.length > 0;
   } catch {
@@ -90,19 +101,10 @@ async function trainedToday(): Promise<boolean> {
   }
 }
 
-async function ensureChannel(id: string, name: string) {
-  if (Platform.OS !== "android") return;
-  await Notifications.setNotificationChannelAsync(id, {
-    name,
-    importance: Notifications.AndroidImportance.DEFAULT,
-    sound: "default",
-  });
-}
-
-async function scheduleWorkout(pref: TimePref) {
-  await ensureChannel("workout-reminders", "Workout reminders");
+async function planWorkout(pref: TimePref): Promise<Planned[]> {
   const alreadyTrained = await trainedToday();
   const now = new Date();
+  const out: Planned[] = [];
 
   for (let i = 0; i < WORKOUT_HORIZON_DAYS; i++) {
     const when = new Date(now);
@@ -112,30 +114,25 @@ async function scheduleWorkout(pref: TimePref) {
     if (when <= now) continue; // today's slot has already passed
     if (i === 0 && alreadyTrained) continue; // don't nag on a day you trained
 
-    await Notifications.scheduleNotificationAsync({
-      content: {
-        title: "Did you train today?",
-        body: "No workout logged yet — open Khata to add one.",
-        data: { screen: "workout" },
-      },
-      trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.DATE,
-        date: when,
-        channelId: "workout-reminders",
-      },
+    out.push({
+      when,
+      title: "Did you train today?",
+      body: "No workout logged yet — open Khata to add one.",
+      channelId: "workout-reminders",
+      screen: "workout",
     });
   }
+  return out;
 }
 
 /** A bill's occurrence in a given month. Short months can't hold a 29th–31st,
  *  so those fall back to the month's last day rather than spilling into the
  *  next one. */
 function occurrenceDate(bill: FixedExpense, year: number, monthIndex: number) {
-  const day = Math.min(bill.due_day, daysInMonth(year, monthIndex));
-  return new Date(year, monthIndex, day);
+  return new Date(year, monthIndex, Math.min(bill.due_day, daysInMonth(year, monthIndex)));
 }
 
-async function scheduleBills(pref: TimePref) {
+async function planBills(pref: TimePref): Promise<Planned[]> {
   const now = new Date();
   const nextMonthDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
 
@@ -149,82 +146,139 @@ async function scheduleBills(pref: TimePref) {
       api.fixedExpenses.list(monthKey(nextMonthDate)),
     ]);
   } catch {
-    // Offline, or no access to the Transactions module. Nothing is scheduled
+    // Offline, or no access to the Transactions module. Nothing is planned
     // this round; the next foreground refresh retries with fresh data.
-    return;
+    return [];
   }
 
   const horizon = new Date(now);
   horizon.setDate(now.getDate() + BILL_HORIZON_DAYS);
-
-  type Planned = { when: Date; title: string; body: string };
-  const planned: Planned[] = [];
+  const out: Planned[] = [];
 
   const plan = (bills: FixedExpense[], year: number, monthIndex: number) => {
     for (const bill of bills) {
-      if (!bill.active) continue;
-      if (bill.status === "paid") continue;
+      if (!bill.active || bill.status === "paid") continue;
 
       const due = occurrenceDate(bill, year, monthIndex);
       const amount = money(bill.amount);
+      const dueLabel = due.toLocaleDateString(undefined, { day: "numeric", month: "long" });
 
       const dayBefore = new Date(due);
       dayBefore.setDate(due.getDate() - 1);
       dayBefore.setHours(pref.hour, pref.minute, 0, 0);
-      planned.push({
+      out.push({
         when: dayBefore,
         title: `${bill.name} is due tomorrow`,
-        body: `${amount} — due ${due.toLocaleDateString(undefined, { day: "numeric", month: "long" })}.`,
+        body: `${amount} — due ${dueLabel}.`,
+        channelId: "bill-reminders",
+        screen: "transactions",
       });
 
       const onTheDay = new Date(due);
       onTheDay.setHours(pref.hour, pref.minute, 0, 0);
-      planned.push({
+      out.push({
         when: onTheDay,
         title: `${bill.name} is due today`,
         body: `${amount} — still not logged as paid.`,
+        channelId: "bill-reminders",
+        screen: "transactions",
       });
     }
   };
 
   plan(thisMonth, now.getFullYear(), now.getMonth());
   plan(nextMonth, nextMonthDate.getFullYear(), nextMonthDate.getMonth());
-
-  const upcoming = planned
-    .filter((p) => p.when > now && p.when <= horizon)
-    .sort((a, b) => a.when.getTime() - b.when.getTime())
-    .slice(0, MAX_BILL_NOTIFICATIONS);
-
-  if (!upcoming.length) return;
-  await ensureChannel("bill-reminders", "Bill reminders");
-
-  for (const p of upcoming) {
-    await Notifications.scheduleNotificationAsync({
-      content: { title: p.title, body: p.body, data: { screen: "transactions" } },
-      trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.DATE,
-        date: p.when,
-        channelId: "bill-reminders",
-      },
-    });
-  }
+  return out.filter((p) => p.when <= horizon);
 }
 
-/** Rebuilds the whole schedule — workout and bills together, because the only
- *  way to drop a stale reminder is to cancel everything and re-derive from
- *  what the server currently says. Called on launch, when the app returns to
- *  the foreground, after a session or transaction is logged, and when the
- *  settings change. */
+function leadLabel(minutes: number) {
+  if (minutes === 0) return "starting now";
+  if (minutes < 60) return `in ${minutes} minutes`;
+  if (minutes === 60) return "in an hour";
+  if (minutes < 1440) return `in ${Math.round(minutes / 60)} hours`;
+  return minutes === 1440 ? "tomorrow" : `in ${Math.round(minutes / 1440)} days`;
+}
+
+async function planTimetable(): Promise<Planned[]> {
+  let occurrences: TimetableOccurrence[] = [];
+  try {
+    occurrences = await api.timetable.occurrences(isoDate(new Date()), TIMETABLE_HORIZON_DAYS);
+  } catch {
+    return [];
+  }
+
+  return occurrences
+    .filter((o) => o.remind_minutes !== null)
+    .map((o) => {
+      // The lead time is per-entry, so the fire time is the start minus it.
+      const start = atLocal(o.date, o.starts_at);
+      const when = new Date(start.getTime() - (o.remind_minutes as number) * 60_000);
+      const where = o.location ? ` · ${o.location}` : "";
+      return {
+        when,
+        title: `${o.title} ${leadLabel(o.remind_minutes as number)}`,
+        body: `${formatTime(o.starts_at)}–${formatTime(o.ends_at)}${where}`,
+        channelId: "timetable-reminders",
+        screen: "timetable",
+      };
+    });
+}
+
+async function ensureChannel(id: string, name: string) {
+  if (Platform.OS !== "android") return;
+  await Notifications.setNotificationChannelAsync(id, {
+    name,
+    importance: Notifications.AndroidImportance.DEFAULT,
+    sound: "default",
+  });
+}
+
+const CHANNEL_NAMES: Record<string, string> = {
+  "workout-reminders": "Workout reminders",
+  "bill-reminders": "Bill reminders",
+  "timetable-reminders": "Timetable reminders",
+};
+
+/** Rebuilds the whole schedule. The only way to drop a stale reminder is to
+ *  cancel everything and re-derive from what the server currently says, so
+ *  that's what this does — on launch, on every return to the foreground,
+ *  after something is logged, and whenever the settings change. */
 export async function refreshReminders() {
   const prefs = await getReminderPrefs();
-  const wanted = prefs.workout.enabled || prefs.bills.enabled;
+  const wanted = prefs.workout.enabled || prefs.bills.enabled || prefs.timetable.enabled;
 
   await Notifications.cancelAllScheduledNotificationsAsync();
   if (!wanted) return;
   if (!(await ensurePermission())) return;
 
-  if (prefs.workout.enabled) await scheduleWorkout(prefs.workout);
-  if (prefs.bills.enabled) await scheduleBills(prefs.bills);
+  const planned = (
+    await Promise.all([
+      prefs.workout.enabled ? planWorkout(prefs.workout) : [],
+      prefs.bills.enabled ? planBills(prefs.bills) : [],
+      prefs.timetable.enabled ? planTimetable() : [],
+    ])
+  ).flat();
+
+  const now = new Date();
+  const upcoming = planned
+    .filter((p) => p.when > now)
+    .sort((a, b) => a.when.getTime() - b.when.getTime())
+    .slice(0, MAX_SCHEDULED);
+
+  for (const id of new Set(upcoming.map((p) => p.channelId))) {
+    await ensureChannel(id, CHANNEL_NAMES[id] ?? "Reminders");
+  }
+
+  for (const p of upcoming) {
+    await Notifications.scheduleNotificationAsync({
+      content: { title: p.title, body: p.body, data: { screen: p.screen } },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date: p.when,
+        channelId: p.channelId,
+      },
+    });
+  }
 }
 
 export function formatTimePref({ hour, minute }: TimePref) {

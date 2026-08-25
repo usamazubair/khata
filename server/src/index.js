@@ -15,6 +15,8 @@ const fixedExpenses = require("./routes/fixedExpenses");
 const budgets = require("./routes/budgets");
 const goals = require("./routes/goals");
 const summary = require("./routes/summary");
+const timetable = require("./routes/timetable");
+const todo = require("./routes/todo");
 const exercises = require("./routes/exercises");
 const workouts = require("./routes/workouts");
 
@@ -44,6 +46,9 @@ app.use("/api/summary", transactionsModule, summary);
 const workoutModule = requireModule("workout");
 app.use("/api/exercises", workoutModule, exercises);
 app.use("/api/workouts", workoutModule, workouts);
+
+app.use("/api/timetable", requireModule("timetable"), timetable);
+app.use("/api/todo", requireModule("todo"), todo);
 
 // Web dashboard: the built React app (Vite outputs here). The client holds a
 // JWT from /api/auth/login.

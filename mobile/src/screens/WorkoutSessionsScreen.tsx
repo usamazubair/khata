@@ -3,7 +3,7 @@ import { View, Text, TextInput, Pressable, ScrollView, StyleSheet, Alert, Refres
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme, fonts } from "../theme";
-import { api } from "../api";
+import { api, parseDate } from "../api";
 import { WorkoutSession } from "../types";
 import { kg } from "./WorkoutHomeScreen";
 
@@ -128,7 +128,7 @@ export default function WorkoutSessionsScreen({ navigation }: any) {
                 {s.name || "Workout"}
               </Text>
               <Text style={{ color: t.inkMuted, fontSize: 11.5, marginTop: 2 }}>
-                {new Date(s.occurred_on).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}
+                {parseDate(s.occurred_on).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}
                 {" · "}
                 {s.set_count} set{s.set_count === 1 ? "" : "s"} · {s.total_reps} reps
               </Text>

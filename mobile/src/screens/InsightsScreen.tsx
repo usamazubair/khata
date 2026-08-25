@@ -3,7 +3,7 @@ import { View, Text, TextInput, ScrollView, StyleSheet, Pressable } from "react-
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme, fonts } from "../theme";
-import { api, currentMonth, money, ApiNotConfiguredError } from "../api";
+import { api, currentMonth, money, parseDate, ApiNotConfiguredError } from "../api";
 import { Budget, Goal } from "../types";
 import ProgressBar from "../components/ProgressBar";
 
@@ -118,7 +118,7 @@ export default function InsightsScreen() {
                   <View style={styles.cardTop}>
                     <Text style={{ color: t.inkMuted, fontSize: 11 }}>
                       {g.target_date
-                        ? `Target: ${new Date(g.target_date).toLocaleDateString(undefined, { month: "short", year: "numeric" })}`
+                        ? `Target: ${parseDate(g.target_date).toLocaleDateString(undefined, { month: "short", year: "numeric" })}`
                         : g.category_name}
                     </Text>
                     <Text style={{ color: remaining <= 0 ? t.status.good : t.inkMuted, fontSize: 11, fontWeight: "600" }}>

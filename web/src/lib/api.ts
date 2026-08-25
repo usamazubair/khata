@@ -105,12 +105,21 @@ export function shiftMonth(ym: string, delta: number) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
+/** A DATE column arrives as "YYYY-MM-DD" — a calendar date with no timezone.
+ *  `new Date("2026-08-20")` reads that as UTC midnight, which lands on the
+ *  19th anywhere west of Greenwich, so build it at local midnight instead.
+ *  Full timestamps (created_at) still parse normally. */
+export function parseDate(value: string) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : new Date(value);
+}
+
 export function shortDate(iso: string) {
-  return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  return parseDate(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
 export function fullDate(iso: string) {
-  return new Date(iso).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+  return parseDate(iso).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
 }
 
 // Stored category hex -> its dark-mode step. Both the current swatches and the

@@ -2,7 +2,7 @@ import { useCallback, useState } from "react";
 import { View, Text, ScrollView, StyleSheet, RefreshControl } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { useTheme, fonts } from "../theme";
-import { api } from "../api";
+import { api, parseDate } from "../api";
 import { WorkoutSummary } from "../types";
 import ProgressBar from "../components/ProgressBar";
 
@@ -116,7 +116,7 @@ export default function WorkoutHomeScreen() {
                 <View style={{ flex: 1 }}>
                   <Text style={{ color: t.ink, fontSize: 13 }} numberOfLines={1}>{s.name || "Workout"}</Text>
                   <Text style={{ color: t.inkMuted, fontSize: 11 }}>
-                    {new Date(s.occurred_on).toLocaleDateString(undefined, { month: "short", day: "numeric" })} ·{" "}
+                    {parseDate(s.occurred_on).toLocaleDateString(undefined, { month: "short", day: "numeric" })} ·{" "}
                     {s.set_count} set{s.set_count === 1 ? "" : "s"}
                   </Text>
                 </View>

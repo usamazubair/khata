@@ -37,7 +37,12 @@ export default function ModulesScreen({ navigation }: any) {
   }
 
   // Each module has its own hand-built stack, keyed off its slug.
-  const ROUTES: Record<string, string> = { transactions: "Transactions", workout: "Workout" };
+  const ROUTES: Record<string, string> = {
+    transactions: "Transactions",
+    workout: "Workout",
+    timetable: "Timetable",
+    todo: "Todo",
+  };
 
   function open(m: Module) {
     const route = ROUTES[m.slug];
