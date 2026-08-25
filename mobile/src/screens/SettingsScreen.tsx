@@ -19,6 +19,7 @@ const DEFAULTS: ReminderPrefs = {
   workout: { enabled: false, hour: 19, minute: 0 },
   bills: { enabled: false, hour: 10, minute: 0 },
   timetable: { enabled: false },
+  todo: { enabled: false, hour: 9, minute: 0 },
 };
 
 /** Asks for permission the first time it's switched on; without that the
@@ -202,6 +203,13 @@ export default function SettingsScreen({ navigation }: any) {
         description="Each entry fires at its own lead time — set that per entry on the web dashboard."
         pref={prefs.timetable}
         onChange={(timetable) => update({ ...prefs, timetable })}
+      />
+      <View style={{ height: 10 }} />
+      <ReminderCard
+        title="Todo"
+        description="Any task with a due date, skipped once it's marked done. An overdue task nags again today instead of staying silent."
+        pref={prefs.todo}
+        onChange={(todo) => update({ ...prefs, todo })}
       />
 
       <Text style={[styles.sectionLabel, { color: t.inkMuted }]}>Log from SMS</Text>

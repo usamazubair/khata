@@ -10,6 +10,7 @@ const SCREEN_ROUTES: Record<string, string> = {
   workout: "Workout",
   transactions: "Transactions",
   timetable: "Timetable",
+  todo: "Todo",
   smsReview: "SmsReview",
 };
 

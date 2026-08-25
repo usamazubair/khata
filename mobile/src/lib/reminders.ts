@@ -2,7 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
 import { api, money } from "../api";
-import { FixedExpense, TimetableOccurrence } from "../types";
+import { FixedExpense, TimetableOccurrence, TodoItem } from "../types";
 import { atLocal, formatTime, isoDate } from "./schedule";
 
 const PREFS_KEY = "khata_reminders";
@@ -16,6 +16,7 @@ const LEGACY_WORKOUT_KEY = "khata_workout_reminder";
 const WORKOUT_HORIZON_DAYS = 14;
 const BILL_HORIZON_DAYS = 40;
 const TIMETABLE_HORIZON_DAYS = 14;
+const TODO_HORIZON_DAYS = 30;
 
 // iOS silently drops anything past 64 pending notifications. Rather than give
 // each kind a fixed slice — which starves whichever you actually use most —
@@ -29,12 +30,14 @@ export type ReminderPrefs = {
   bills: TimePref;
   /** Timetable entries carry their own lead time, so there's no clock here. */
   timetable: TogglePref;
+  todo: TimePref;
 };
 
 const DEFAULTS: ReminderPrefs = {
   workout: { enabled: false, hour: 19, minute: 0 },
   bills: { enabled: false, hour: 10, minute: 0 },
   timetable: { enabled: false },
+  todo: { enabled: false, hour: 9, minute: 0 },
 };
 
 type Planned = { when: Date; title: string; body: string; channelId: string; screen: string };
@@ -48,6 +51,7 @@ export async function getReminderPrefs(): Promise<ReminderPrefs> {
         workout: { ...DEFAULTS.workout, ...saved.workout },
         bills: { ...DEFAULTS.bills, ...saved.bills },
         timetable: { ...DEFAULTS.timetable, ...saved.timetable },
+        todo: { ...DEFAULTS.todo, ...saved.todo },
       };
     }
     // Carry over the flat workout-only shape this replaced.
@@ -224,6 +228,47 @@ async function planTimetable(): Promise<Planned[]> {
     });
 }
 
+async function planTodo(pref: TimePref): Promise<Planned[]> {
+  let items: TodoItem[] = [];
+  try {
+    items = await api.todo.items({ done: "false" });
+  } catch {
+    return [];
+  }
+
+  const now = new Date();
+  const today = isoDate(now);
+  const hhmm = `${String(pref.hour).padStart(2, "0")}:${String(pref.minute).padStart(2, "0")}`;
+  const horizon = new Date(now);
+  horizon.setDate(now.getDate() + TODO_HORIZON_DAYS);
+
+  const out: Planned[] = [];
+  for (const item of items) {
+    if (!item.due_date) continue; // nothing dated, nothing to remind about
+
+    // An overdue task nags again today rather than staying silent forever —
+    // its own due date has already passed, so that's the only day left that
+    // makes sense to fire on. If today's slot has itself already passed
+    // (the reminder hour was earlier than whenever this refresh happens to
+    // run), fire shortly instead of skipping it outright until tomorrow —
+    // the alternative is a day where an overdue task never nags at all
+    // just because you opened the app in the afternoon.
+    const targetDate = item.due_date < today ? today : item.due_date;
+    let when = atLocal(targetDate, hhmm);
+    if (targetDate === today && when <= now) when = new Date(now.getTime() + 60_000);
+    if (when > horizon) continue;
+
+    out.push({
+      when,
+      title: `${item.title} is due${item.due_date < today ? " (overdue)" : item.due_date === today ? " today" : ""}`,
+      body: `On your ${item.list_name} list.`,
+      channelId: "todo-reminders",
+      screen: "todo",
+    });
+  }
+  return out;
+}
+
 async function ensureChannel(id: string, name: string) {
   if (Platform.OS !== "android") return;
   await Notifications.setNotificationChannelAsync(id, {
@@ -237,6 +282,7 @@ const CHANNEL_NAMES: Record<string, string> = {
   "workout-reminders": "Workout reminders",
   "bill-reminders": "Bill reminders",
   "timetable-reminders": "Timetable reminders",
+  "todo-reminders": "Todo reminders",
 };
 
 // refreshReminders() is triggered from several independent places — sign-in,
@@ -276,7 +322,8 @@ export function refreshReminders(): Promise<void> {
  *  means that failure mode leaves the *previous* schedule intact instead. */
 async function doRefreshReminders() {
   const prefs = await getReminderPrefs();
-  const wanted = prefs.workout.enabled || prefs.bills.enabled || prefs.timetable.enabled;
+  const wanted =
+    prefs.workout.enabled || prefs.bills.enabled || prefs.timetable.enabled || prefs.todo.enabled;
 
   if (!wanted) {
     await Notifications.cancelAllScheduledNotificationsAsync();
@@ -289,6 +336,7 @@ async function doRefreshReminders() {
       prefs.workout.enabled ? planWorkout(prefs.workout) : [],
       prefs.bills.enabled ? planBills(prefs.bills) : [],
       prefs.timetable.enabled ? planTimetable() : [],
+      prefs.todo.enabled ? planTodo(prefs.todo) : [],
     ])
   ).flat();
 
