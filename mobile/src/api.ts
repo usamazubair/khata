@@ -1,15 +1,11 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const URL_KEY = "khata_api_url";
 const TOKEN_KEY = "khata_token";
 
-export async function getServerUrl() {
-  return (await AsyncStorage.getItem(URL_KEY)) || "";
-}
-
-export async function setServerUrl(url: string) {
-  await AsyncStorage.setItem(URL_KEY, url.trim().replace(/\/+$/, ""));
-}
+// This app talks to one server — there's nothing to type in and nothing to
+// configure. If Khata is ever pointed at a different deployment, this is
+// the one line that changes.
+export const SERVER_URL = "https://khata-l8x3.onrender.com";
 
 export async function getToken() {
   return (await AsyncStorage.getItem(TOKEN_KEY)) || "";
@@ -23,7 +19,6 @@ export async function clearToken() {
   await AsyncStorage.removeItem(TOKEN_KEY);
 }
 
-export class ApiNotConfiguredError extends Error {}
 export class UnauthorizedError extends Error {}
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -44,10 +39,9 @@ export function setUnauthorizedHandler(fn: () => void) {
 }
 
 async function request(path: string, options: RequestInit = {}, attempt = 1): Promise<any> {
-  const [url, token] = await Promise.all([getServerUrl(), getToken()]);
-  if (!url) throw new ApiNotConfiguredError("Set the server address first.");
+  const token = await getToken();
 
-  const res = await fetch(`${url}${path}`, {
+  const res = await fetch(`${SERVER_URL}${path}`, {
     ...options,
     cache: "no-store",
     headers: {
@@ -81,11 +75,9 @@ async function request(path: string, options: RequestInit = {}, attempt = 1): Pr
 }
 
 export const api = {
-  health: (url: string) => fetch(`${url}/api/health`).then((r) => r.ok),
-
   // Login is the one call that runs before a token exists.
-  login: async (url: string, email: string, password: string) => {
-    const res = await fetch(`${url.trim().replace(/\/+$/, "")}/api/auth/login`, {
+  login: async (email: string, password: string) => {
+    const res = await fetch(`${SERVER_URL}/api/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email: email.trim(), password }),

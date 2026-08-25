@@ -3,7 +3,7 @@ import { View, Text, TextInput, ScrollView, StyleSheet, Pressable } from "react-
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme, fonts } from "../theme";
-import { api, currentMonth, money, parseDate, ApiNotConfiguredError } from "../api";
+import { api, currentMonth, money, parseDate } from "../api";
 import { Budget, Goal } from "../types";
 import ProgressBar from "../components/ProgressBar";
 
@@ -26,7 +26,7 @@ export default function InsightsScreen() {
           setGoals(g);
           setError(null);
         })
-        .catch((err) => setError(err instanceof ApiNotConfiguredError ? "Couldn't reach the server. Pull to refresh, or sign out and back in." : err.message));
+        .catch((err) => setError(err.message));
     }, [])
   );
 

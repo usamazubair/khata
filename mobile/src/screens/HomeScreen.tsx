@@ -3,7 +3,7 @@ import { View, Text, ScrollView, Pressable, StyleSheet, RefreshControl } from "r
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme, fonts } from "../theme";
-import { api, currentMonth, money, ApiNotConfiguredError } from "../api";
+import { api, currentMonth, money } from "../api";
 import { refreshReminders } from "../lib/reminders";
 import { getPending } from "../lib/smsQueue";
 import { Summary } from "../types";
@@ -23,11 +23,7 @@ export default function HomeScreen({ navigation }: any) {
       setData(summary);
       setError(null);
     } catch (err: any) {
-      if (err instanceof ApiNotConfiguredError) {
-        setError("Couldn't reach the server. Pull to refresh, or sign out and back in.");
-      } else {
-        setError(err.message || "Couldn't load data.");
-      }
+      setError(err.message || "Couldn't load data.");
     }
     setPendingSms((await getPending()).length);
   }, []);

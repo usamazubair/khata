@@ -3,7 +3,7 @@ import { View, Text, ScrollView, Pressable, StyleSheet, RefreshControl } from "r
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme, fonts } from "../theme";
-import { api, ApiNotConfiguredError } from "../api";
+import { api } from "../api";
 import { Module } from "../types";
 import { useAuth } from "../AuthContext";
 
@@ -19,8 +19,7 @@ export default function ModulesScreen({ navigation }: any) {
       setModules(await api.modules());
       setError(null);
     } catch (err: any) {
-      if (err instanceof ApiNotConfiguredError) setError("Set the server address in Settings.");
-      else setError(err.message || "Couldn't load your modules.");
+      setError(err.message || "Couldn't load your modules.");
     }
   }, []);
 

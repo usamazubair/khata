@@ -1,11 +1,11 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { api, clearToken, getServerUrl, getToken, setServerUrl, setToken, setUnauthorizedHandler, User } from "./api";
+import { api, clearToken, getToken, setToken, setUnauthorizedHandler, SERVER_URL, User } from "./api";
 
 type AuthState = {
   ready: boolean;
   user: User | null;
   serverUrl: string;
-  signIn: (url: string, email: string, password: string) => Promise<void>;
+  signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
 };
 
@@ -14,7 +14,6 @@ const AuthContext = createContext<AuthState>(null as any);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
   const [user, setUser] = useState<User | null>(null);
-  const [serverUrl, setUrl] = useState("");
 
   const signOut = useCallback(async () => {
     await clearToken();
@@ -25,9 +24,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // the app opens straight to the modules list, otherwise it shows login.
   useEffect(() => {
     (async () => {
-      const [url, token] = await Promise.all([getServerUrl(), getToken()]);
-      setUrl(url);
-      if (url && token) {
+      const token = await getToken();
+      if (token) {
         try {
           setUser(await api.me());
         } catch {
@@ -43,18 +41,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUnauthorizedHandler(() => setUser(null));
   }, []);
 
-  const signIn = useCallback(async (url: string, email: string, password: string) => {
-    const cleanUrl = url.trim().replace(/\/+$/, "");
-    const { token, user: signedIn } = await api.login(cleanUrl, email, password);
-    await setServerUrl(cleanUrl);
+  const signIn = useCallback(async (email: string, password: string) => {
+    const { token, user: signedIn } = await api.login(email, password);
     await setToken(token);
-    setUrl(cleanUrl);
     setUser(signedIn);
   }, []);
 
   const value = useMemo(
-    () => ({ ready, user, serverUrl, signIn, signOut }),
-    [ready, user, serverUrl, signIn, signOut]
+    () => ({ ready, user, serverUrl: SERVER_URL, signIn, signOut }),
+    [ready, user, signIn, signOut]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

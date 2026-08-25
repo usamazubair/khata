@@ -1,30 +1,24 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { View, Text, TextInput, Pressable, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from "react-native";
 import { useTheme, fonts } from "../theme";
 import { useAuth } from "../AuthContext";
 
 export default function LoginScreen() {
   const t = useTheme();
-  const { signIn, serverUrl } = useAuth();
-  const [url, setUrl] = useState("");
+  const { signIn } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  // Prefill the server address once it's been entered — you only type it once.
-  useEffect(() => {
-    if (serverUrl) setUrl(serverUrl);
-  }, [serverUrl]);
-
   async function submit() {
-    if (!url.trim() || !email.trim() || !password) {
-      return setError("Server address, email and password are all required.");
+    if (!email.trim() || !password) {
+      return setError("Email and password are both required.");
     }
     setBusy(true);
     setError(null);
     try {
-      await signIn(url, email, password);
+      await signIn(email, password);
     } catch (err: any) {
       setError(err.message || "Couldn't sign in.");
     } finally {
@@ -42,18 +36,6 @@ export default function LoginScreen() {
         <Text style={[styles.tagline, { color: t.inkMuted, fontFamily: fonts.display }]}>Your ledger, in your pocket.</Text>
 
         <View style={[styles.card, { backgroundColor: t.page2 }]}>
-          <Text style={[styles.label, { color: t.inkMuted }]}>Server address</Text>
-          <TextInput
-            value={url}
-            onChangeText={setUrl}
-            placeholder="https://khata-xxxx.onrender.com"
-            placeholderTextColor={t.inkMuted}
-            autoCapitalize="none"
-            autoCorrect={false}
-            keyboardType="url"
-            style={[styles.input, { borderColor: t.rule, color: t.ink, backgroundColor: t.page }]}
-          />
-
           <Text style={[styles.label, { color: t.inkMuted }]}>Email</Text>
           <TextInput
             value={email}
@@ -64,6 +46,7 @@ export default function LoginScreen() {
             autoCorrect={false}
             keyboardType="email-address"
             textContentType="username"
+            autoFocus
             style={[styles.input, { borderColor: t.rule, color: t.ink, backgroundColor: t.page }]}
           />
 

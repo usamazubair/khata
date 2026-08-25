@@ -3,7 +3,7 @@ import { View, Text, TextInput, Pressable, ScrollView, StyleSheet, Switch, Alert
 import { useFocusEffect } from "@react-navigation/native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useTheme, fonts } from "../theme";
-import { api, ApiNotConfiguredError } from "../api";
+import { api } from "../api";
 import { Category, CategoryType } from "../types";
 import Dot from "../components/Dot";
 
@@ -48,7 +48,7 @@ export default function AddScreen({ navigation }: any) {
           setError(null);
           setCategoryId((prev) => prev ?? cats.find((c) => c.type === "expense")?.id ?? cats[0]?.id ?? null);
         })
-        .catch((err) => setError(err instanceof ApiNotConfiguredError ? "Couldn't reach the server. Pull to refresh, or sign out and back in." : err.message));
+        .catch((err) => setError(err.message));
     }, [])
   );
 

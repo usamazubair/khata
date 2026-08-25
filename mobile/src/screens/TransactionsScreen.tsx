@@ -3,7 +3,7 @@ import { View, Text, TextInput, SectionList, StyleSheet, Pressable, RefreshContr
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme, fonts } from "../theme";
-import { api, currentMonth, money, ApiNotConfiguredError } from "../api";
+import { api, currentMonth, money } from "../api";
 import { Transaction } from "../types";
 import Dot from "../components/Dot";
 
@@ -38,7 +38,7 @@ export default function TransactionsScreen() {
       setItems(rows);
       setError(null);
     } catch (err: any) {
-      setError(err instanceof ApiNotConfiguredError ? "Couldn't reach the server. Pull to refresh, or sign out and back in." : err.message);
+      setError(err.message);
     }
   }, []);
 
