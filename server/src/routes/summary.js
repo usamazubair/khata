@@ -20,6 +20,7 @@ router.get("/", asyncHandler(async (req, res) => {
     archives,
     budgets,
     goals,
+    fixed,
   ] = await Promise.all([
     pool.query(
       `SELECT COALESCE(SUM(t.amount), 0) AS total
@@ -71,6 +72,19 @@ router.get("/", asyncHandler(async (req, res) => {
     ),
     listBudgets(monthDate, { activeOnly: true }),
     listGoals({ activeOnly: true }),
+    // "Remaining" is whatever isn't yet paid this month — no transaction
+    // logged at all, or logged but not marked paid — mirroring the same
+    // paid/due/unlogged status the Fixed Transactions page itself uses.
+    pool.query(
+      `SELECT COALESCE(SUM(f.amount), 0) AS total,
+              COALESCE(SUM(f.amount) FILTER (WHERE t.id IS NULL OR NOT t.is_paid), 0) AS remaining
+       FROM fixed_expenses f
+       LEFT JOIN transactions t
+         ON t.fixed_expense_id = f.id
+        AND date_trunc('month', t.occurred_on) = date_trunc('month', $1::date)
+       WHERE f.active`,
+      [monthDate]
+    ),
   ]);
 
   res.json({
@@ -84,6 +98,8 @@ router.get("/", asyncHandler(async (req, res) => {
     archives: archives.rows.map((r) => ({ ...r, total: Number(r.total), count: Number(r.count) })),
     budgets: budgets.map((b) => ({ ...b, price: Number(b.price), spent: Number(b.spent), remaining: Number(b.remaining) })),
     goals: goals.map((g) => ({ ...g, price: Number(g.price), saved: Number(g.saved), remaining: Number(g.remaining) })),
+    fixed_total: Number(fixed.rows[0].total),
+    fixed_remaining: Number(fixed.rows[0].remaining),
   });
 }));
 

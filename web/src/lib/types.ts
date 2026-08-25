@@ -101,6 +101,8 @@ export type Summary = {
   archives: { month: string; total: number; count: number }[];
   budgets: Budget[];
   goals: Goal[];
+  fixed_total: number;
+  fixed_remaining: number;
 };
 
 export type Exercise = {

@@ -218,6 +218,33 @@ export default function TransactionsOverview() {
                 })}
               </motion.div>
             )}
+
+            <SectionLabel>
+              <div className="mt-7">Fixed transactions — what's left</div>
+            </SectionLabel>
+            {data.fixed_total === 0 ? (
+              <EmptyState>No fixed transactions yet.</EmptyState>
+            ) : (
+              <motion.div variants={riseItem} layout className="surface px-4 py-3.5">
+                <div className="flex items-baseline justify-between gap-3 text-[13px]">
+                  <span className="font-semibold">This month</span>
+                  <span className="num text-xs text-muted">
+                    {money(data.fixed_total - data.fixed_remaining)} / {money(data.fixed_total)}
+                  </span>
+                </div>
+                <div className="mt-2.5">
+                  <ProgressBar
+                    pct={data.fixed_total > 0 ? ((data.fixed_total - data.fixed_remaining) / data.fixed_total) * 100 : 0}
+                  />
+                </div>
+                <div className="mt-2 flex justify-between text-[11px] text-muted">
+                  <span>Total / paid so far</span>
+                  <Pill tone={data.fixed_remaining <= 0 ? "good" : "neutral"}>
+                    {data.fixed_remaining <= 0 ? "All paid" : `${money(data.fixed_remaining)} left`}
+                  </Pill>
+                </div>
+              </motion.div>
+            )}
           </motion.div>
         )}
       </Page>
