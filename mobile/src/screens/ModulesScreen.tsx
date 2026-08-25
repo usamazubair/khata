@@ -59,6 +59,9 @@ export default function ModulesScreen({ navigation }: any) {
           <Text style={[styles.wordmark, { color: t.ink, fontFamily: fonts.display }]}>Modules</Text>
           <Text style={{ color: t.inkMuted, fontSize: 12 }}>{user?.name || user?.email}</Text>
         </View>
+        <Pressable onPress={() => navigation.navigate("Notifications")} hitSlop={8} style={styles.bell}>
+          <Ionicons name="notifications-outline" size={20} color={t.ink} />
+        </Pressable>
         <Pressable onPress={signOut} style={[styles.signOut, { borderColor: t.rule }]} hitSlop={6}>
           <Text style={{ color: t.inkMuted, fontSize: 12 }}>Sign out</Text>
         </Pressable>
@@ -92,6 +95,7 @@ const styles = StyleSheet.create({
   container: { padding: 18, paddingBottom: 40 },
   header: { flexDirection: "row", alignItems: "flex-start", marginBottom: 20 },
   wordmark: { fontSize: 28 },
+  bell: { marginTop: 6, marginRight: 14, padding: 2 },
   signOut: { borderWidth: 1, borderRadius: 20, paddingVertical: 6, paddingHorizontal: 12, marginTop: 6 },
   grid: { gap: 12 },
   card: { borderWidth: 1, borderRadius: 14, padding: 16, position: "relative" },

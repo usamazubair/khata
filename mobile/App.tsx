@@ -9,6 +9,7 @@ import LoginScreen from "./src/screens/LoginScreen";
 import { AuthProvider, useAuth } from "./src/AuthContext";
 import { useTheme } from "./src/theme";
 import { configureNotificationHandler, refreshReminders } from "./src/lib/reminders";
+import { logReceived } from "./src/lib/notificationLog";
 import { navigationRef, navigateFromNotificationData, flushPendingNavigation } from "./src/navigationRef";
 
 configureNotificationHandler();
@@ -22,6 +23,15 @@ Notifications.addNotificationResponseReceivedListener((response) => {
 });
 Notifications.getLastNotificationResponseAsync().then((response) => {
   if (response) navigateFromNotificationData(response.notification.request.content.data as Record<string, unknown>);
+});
+
+// Keeps a local history for the notification bell. Only catches deliveries
+// that happen while this JS is alive to see them — a notification fired
+// while the app is fully closed reaches the system tray same as ever, it
+// just never passes through this listener.
+Notifications.addNotificationReceivedListener((notification) => {
+  const { title, body } = notification.request.content;
+  logReceived(title ?? "Notification", body ?? "");
 });
 
 function Root() {

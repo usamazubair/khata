@@ -242,13 +242,26 @@ const CHANNEL_NAMES: Record<string, string> = {
 /** Rebuilds the whole schedule. The only way to drop a stale reminder is to
  *  cancel everything and re-derive from what the server currently says, so
  *  that's what this does — on launch, on every return to the foreground,
- *  after something is logged, and whenever the settings change. */
+ *  after something is logged, and whenever the settings change.
+ *
+ *  The cancel happens *last*, only once the replacement is fully computed —
+ *  not first. Computing it means several network calls (bills, timetable
+ *  occurrences), which can be slow, especially against a Render free-tier
+ *  instance waking from sleep. A background refresh (the periodic timer, or
+ *  a foreground-return that gets interrupted) can have its process frozen or
+ *  killed by Android mid-fetch; if the old schedule had already been wiped
+ *  at that point, you're left with nothing armed until the app is next
+ *  opened — which is a real, reproducible way for reminders to silently
+ *  stop firing after the app's been backgrounded a while. Cancelling last
+ *  means that failure mode leaves the *previous* schedule intact instead. */
 export async function refreshReminders() {
   const prefs = await getReminderPrefs();
   const wanted = prefs.workout.enabled || prefs.bills.enabled || prefs.timetable.enabled;
 
-  await Notifications.cancelAllScheduledNotificationsAsync();
-  if (!wanted) return;
+  if (!wanted) {
+    await Notifications.cancelAllScheduledNotificationsAsync();
+    return;
+  }
   if (!(await ensurePermission())) return;
 
   const planned = (
@@ -265,6 +278,8 @@ export async function refreshReminders() {
     .sort((a, b) => a.when.getTime() - b.when.getTime())
     .slice(0, MAX_SCHEDULED);
 
+  await Notifications.cancelAllScheduledNotificationsAsync();
+
   for (const id of new Set(upcoming.map((p) => p.channelId))) {
     await ensureChannel(id, CHANNEL_NAMES[id] ?? "Reminders");
   }
@@ -279,6 +294,13 @@ export async function refreshReminders() {
       },
     });
   }
+}
+
+/** Everything currently armed with the OS, regardless of app state — a
+ *  direct answer to "is my reminder actually scheduled", independent of
+ *  whatever refreshReminders() last managed to complete. */
+export async function getScheduledNotifications() {
+  return Notifications.getAllScheduledNotificationsAsync();
 }
 
 export function formatTimePref({ hour, minute }: TimePref) {

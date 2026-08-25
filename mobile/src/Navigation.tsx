@@ -19,6 +19,7 @@ import TimetableEntryScreen from "./screens/TimetableEntryScreen";
 import TodoListsScreen from "./screens/TodoListsScreen";
 import TodoListScreen from "./screens/TodoListScreen";
 import SmsReviewScreen from "./screens/SmsReviewScreen";
+import NotificationsScreen from "./screens/NotificationsScreen";
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -136,6 +137,7 @@ export default function RootNavigator() {
       />
       <Stack.Screen name="WorkoutSession" component={WorkoutSessionScreen} options={{ title: "Workout" }} />
       <Stack.Screen name="SmsReview" component={SmsReviewScreen} options={{ title: "Log from SMS" }} />
+      <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ title: "Notifications" }} />
       <Stack.Screen
         name="WorkoutExercise"
         component={WorkoutExerciseScreen}
