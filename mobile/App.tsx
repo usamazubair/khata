@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { AppState, View, ActivityIndicator } from "react-native";
 import { StatusBar } from "expo-status-bar";
+import * as Notifications from "expo-notifications";
 import { NavigationContainer, DefaultTheme, DarkTheme } from "@react-navigation/native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import RootNavigator from "./src/Navigation";
@@ -8,8 +9,22 @@ import LoginScreen from "./src/screens/LoginScreen";
 import { AuthProvider, useAuth } from "./src/AuthContext";
 import { useTheme } from "./src/theme";
 import { configureNotificationHandler, refreshReminders } from "./src/lib/reminders";
+import { resumeSmsCaptureIfEnabled } from "./src/lib/smsCapture";
+import { navigationRef, navigateFromNotificationData, flushPendingNavigation } from "./src/navigationRef";
 
 configureNotificationHandler();
+
+// Tapping any local notification — a reminder or a detected SMS — should
+// land you on the screen it's about, not just open the app to wherever it
+// last was. Registered once, outside the component tree, so it also
+// catches the response that cold-started the app (a tap while it wasn't
+// running at all).
+Notifications.addNotificationResponseReceivedListener((response) => {
+  navigateFromNotificationData(response.notification.request.content.data as Record<string, unknown>);
+});
+Notifications.getLastNotificationResponseAsync().then((response) => {
+  if (response) navigateFromNotificationData(response.notification.request.content.data as Record<string, unknown>);
+});
 
 function Root() {
   const t = useTheme();
@@ -25,11 +40,21 @@ function Root() {
   useEffect(() => {
     if (!user) return;
     refreshReminders();
+    // The SMS listener is registered against the running app process, so a
+    // process restart (however it happened) drops it silently — re-arm it
+    // on the same schedule as the reminder refresh, if it's meant to be on.
+    resumeSmsCaptureIfEnabled();
     const sub = AppState.addEventListener("change", (next) => {
-      if (appState.current.match(/inactive|background/) && next === "active") refreshReminders();
+      if (appState.current.match(/inactive|background/) && next === "active") {
+        refreshReminders();
+        resumeSmsCaptureIfEnabled();
+      }
       appState.current = next;
     });
-    const interval = setInterval(refreshReminders, 15 * 60_000);
+    const interval = setInterval(() => {
+      refreshReminders();
+      resumeSmsCaptureIfEnabled();
+    }, 15 * 60_000);
     return () => {
       sub.remove();
       clearInterval(interval);
@@ -67,7 +92,7 @@ function Root() {
   }
 
   return (
-    <NavigationContainer theme={navTheme}>
+    <NavigationContainer ref={navigationRef} theme={navTheme} onReady={flushPendingNavigation}>
       <RootNavigator />
       <StatusBar style={t.isDark ? "light" : "dark"} />
     </NavigationContainer>

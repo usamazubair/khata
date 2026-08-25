@@ -1,9 +1,11 @@
 import { useCallback, useState } from "react";
-import { View, Text, ScrollView, StyleSheet, RefreshControl } from "react-native";
+import { View, Text, ScrollView, Pressable, StyleSheet, RefreshControl } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
+import { Ionicons } from "@expo/vector-icons";
 import { useTheme, fonts } from "../theme";
 import { api, currentMonth, money, ApiNotConfiguredError } from "../api";
 import { refreshReminders } from "../lib/reminders";
+import { getPending } from "../lib/smsQueue";
 import { Summary } from "../types";
 import Dot from "../components/Dot";
 import ProgressBar from "../components/ProgressBar";
@@ -13,6 +15,7 @@ export default function HomeScreen({ navigation }: any) {
   const [data, setData] = useState<Summary | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [pendingSms, setPendingSms] = useState(0);
 
   const load = useCallback(async () => {
     try {
@@ -26,6 +29,7 @@ export default function HomeScreen({ navigation }: any) {
         setError(err.message || "Couldn't load data.");
       }
     }
+    setPendingSms((await getPending()).length);
   }, []);
 
   useFocusEffect(
@@ -52,6 +56,16 @@ export default function HomeScreen({ navigation }: any) {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={t.accent} />}
     >
       <Text style={[styles.wordmark, { color: t.ink, fontFamily: fonts.display }]}>Khata</Text>
+
+      {pendingSms > 0 && (
+        <Pressable onPress={() => navigation.navigate("SmsReview")} style={[styles.banner, { backgroundColor: t.accent }]}>
+          <Ionicons name="scan-outline" size={18} color={t.accentInk} />
+          <Text style={{ color: t.accentInk, fontSize: 13, fontWeight: "600", flex: 1 }}>
+            {pendingSms} transaction{pendingSms === 1 ? "" : "s"} detected from SMS
+          </Text>
+          <Ionicons name="chevron-forward" size={16} color={t.accentInk} />
+        </Pressable>
+      )}
 
       {error && (
         <View style={[styles.card, { backgroundColor: t.page2 }]}>
@@ -122,6 +136,7 @@ const styles = StyleSheet.create({
   container: { padding: 18, paddingBottom: 40 },
   wordmark: { fontSize: 30, marginBottom: 16 },
   card: { borderRadius: 14, padding: 15 },
+  banner: { flexDirection: "row", alignItems: "center", gap: 10, borderRadius: 12, padding: 13, marginBottom: 14 },
   label: { fontSize: 10, textTransform: "uppercase", letterSpacing: 0.6 },
   hero: { fontSize: 32, fontWeight: "600", marginTop: 4 },
   caption: { fontSize: 12, marginTop: 8 },

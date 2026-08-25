@@ -18,6 +18,7 @@ import TimetableScreen from "./screens/TimetableScreen";
 import TimetableEntryScreen from "./screens/TimetableEntryScreen";
 import TodoListsScreen from "./screens/TodoListsScreen";
 import TodoListScreen from "./screens/TodoListScreen";
+import SmsReviewScreen from "./screens/SmsReviewScreen";
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -134,6 +135,7 @@ export default function RootNavigator() {
         options={({ route }: any) => ({ title: route.params?.name ?? "Tasks" })}
       />
       <Stack.Screen name="WorkoutSession" component={WorkoutSessionScreen} options={{ title: "Workout" }} />
+      <Stack.Screen name="SmsReview" component={SmsReviewScreen} options={{ title: "Detected transactions" }} />
       <Stack.Screen
         name="WorkoutExercise"
         component={WorkoutExerciseScreen}
