@@ -239,6 +239,26 @@ const CHANNEL_NAMES: Record<string, string> = {
   "timetable-reminders": "Timetable reminders",
 };
 
+// refreshReminders() is triggered from several independent places — sign-in,
+// foreground-return, the 15-minute timer, and a manual "Sync now". A slow
+// Render wake-up can make one call take tens of seconds, long enough for a
+// second trigger to fire before the first finishes; without this guard
+// they'd run concurrently, each fetching its own view of the data and both
+// cancelling-and-rescheduling, so whichever happened to finish last would
+// silently win — even over a call working from fresher data. Coalescing
+// concurrent calls into the one already in flight makes that impossible:
+// every caller during that window observes the same, single result.
+let inFlight: Promise<void> | null = null;
+
+export function refreshReminders(): Promise<void> {
+  if (!inFlight) {
+    inFlight = doRefreshReminders().finally(() => {
+      inFlight = null;
+    });
+  }
+  return inFlight;
+}
+
 /** Rebuilds the whole schedule. The only way to drop a stale reminder is to
  *  cancel everything and re-derive from what the server currently says, so
  *  that's what this does — on launch, on every return to the foreground,
@@ -254,7 +274,7 @@ const CHANNEL_NAMES: Record<string, string> = {
  *  opened — which is a real, reproducible way for reminders to silently
  *  stop firing after the app's been backgrounded a while. Cancelling last
  *  means that failure mode leaves the *previous* schedule intact instead. */
-export async function refreshReminders() {
+async function doRefreshReminders() {
   const prefs = await getReminderPrefs();
   const wanted = prefs.workout.enabled || prefs.bills.enabled || prefs.timetable.enabled;
 
