@@ -1,204 +1,88 @@
-import { useCallback, useMemo, useState } from "react";
-import { View, Text, TextInput, Pressable, ScrollView, StyleSheet, Switch, Alert, Platform } from "react-native";
-import { useFocusEffect } from "@react-navigation/native";
-import DateTimePicker from "@react-native-community/datetimepicker";
+import { View, Text, Pressable, ScrollView, StyleSheet } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useTheme, fonts } from "../theme";
-import { api } from "../api";
-import { Category, CategoryType } from "../types";
-import Dot from "../components/Dot";
 
-function toISODate(d: Date) {
-  return d.toISOString().slice(0, 10);
+type Option = {
+  icon: keyof typeof Ionicons.glyphMap;
+  title: string;
+  description: string;
+  onPress: () => void;
+};
+
+function OptionCard({ icon, title, description, onPress, tint, t }: Option & { tint: string; t: ReturnType<typeof useTheme> }) {
+  return (
+    <Pressable onPress={onPress} style={[styles.card, { backgroundColor: t.page2, borderLeftColor: tint }]}>
+      <View style={[styles.iconWrap, { backgroundColor: tint + "22" }]}>
+        <Ionicons name={icon} size={19} color={tint} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={{ color: t.ink, fontSize: 14.5, fontWeight: "600" }}>{title}</Text>
+        <Text style={{ color: t.inkMuted, fontSize: 11.5, marginTop: 2, lineHeight: 15 }}>{description}</Text>
+      </View>
+      <Ionicons name="chevron-forward" size={16} color={t.inkMuted} />
+    </Pressable>
+  );
 }
 
-const TYPE_SECTIONS: { type: CategoryType; label: string }[] = [
-  { type: "expense", label: "Expense" },
-  { type: "fixed", label: "Fixed" },
-  { type: "saved", label: "Saved" },
-  { type: "budget", label: "Budget" },
-];
-
+/** What are you logging? Each answer goes straight to its own focused
+ *  screen rather than piling every path into one form — fixed bills don't
+ *  need an amount typed in, SMS doesn't need a category picker up front,
+ *  and a manual expense doesn't need to see saved/budget categories. */
 export default function AddScreen({ navigation }: any) {
   const t = useTheme();
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [amount, setAmount] = useState("");
-  const [categoryId, setCategoryId] = useState<number | null>(null);
-  const [description, setDescription] = useState("");
-  const [date, setDate] = useState(new Date());
-  const [showPicker, setShowPicker] = useState(false);
-  const [isPaid, setIsPaid] = useState(true);
-  const [saving, setSaving] = useState(false);
-
-  const byType = useMemo(() => {
-    const map = new Map<CategoryType, Category[]>();
-    for (const c of categories) {
-      if (!map.has(c.type)) map.set(c.type, []);
-      map.get(c.type)!.push(c);
-    }
-    return map;
-  }, [categories]);
-
-  useFocusEffect(
-    useCallback(() => {
-      api
-        .categories.list()
-        .then((cats: Category[]) => {
-          setCategories(cats);
-          setError(null);
-          setCategoryId((prev) => prev ?? cats.find((c) => c.type === "expense")?.id ?? cats[0]?.id ?? null);
-        })
-        .catch((err) => setError(err.message));
-    }, [])
-  );
-
-  function reset() {
-    setAmount("");
-    setDescription("");
-    setIsPaid(true);
-    setDate(new Date());
-  }
-
-  async function save() {
-    const numAmount = Number(amount);
-    if (!categoryId) return Alert.alert("Pick a category first.");
-    if (!numAmount || numAmount <= 0) return Alert.alert("Enter an amount greater than 0.");
-
-    setSaving(true);
-    try {
-      await api.transactions.create({
-        category_id: categoryId,
-        description,
-        amount: numAmount,
-        is_paid: isPaid,
-        occurred_on: toISODate(date),
-      });
-      reset();
-      navigation.navigate("Home");
-    } catch (err: any) {
-      Alert.alert("Couldn't save", err.message || "Something went wrong.");
-    } finally {
-      setSaving(false);
-    }
-  }
 
   return (
     <ScrollView style={{ backgroundColor: t.paper }} contentContainerStyle={styles.container}>
-      <View style={styles.titleRow}>
-        <Text style={[styles.title, { color: t.ink, fontFamily: fonts.display }]}>New entry</Text>
-        <Pressable onPress={() => navigation.navigate("SmsReview")} hitSlop={6}>
-          <Text style={{ color: t.accent, fontSize: 12.5, fontWeight: "600" }}>Paste SMS instead</Text>
-        </Pressable>
-      </View>
+      <Text style={[styles.title, { color: t.ink, fontFamily: fonts.display }]}>Add</Text>
+      <Text style={{ color: t.inkMuted, fontSize: 12.5, marginBottom: 20 }}>What are you logging?</Text>
 
-      {error ? (
-        <Text style={{ color: t.inkMuted, fontSize: 13 }}>{error}</Text>
-      ) : (
-        <>
-          <View style={styles.amountRow}>
-            <Text style={[styles.currency, { color: t.inkMuted, fontFamily: fonts.mono }]}>Rs</Text>
-            <TextInput
-              value={amount}
-              onChangeText={(v) => setAmount(v.replace(/[^0-9.]/g, ""))}
-              keyboardType="decimal-pad"
-              placeholder="0"
-              placeholderTextColor={t.inkMuted}
-              style={[styles.amountInput, { color: t.ink, fontFamily: fonts.mono, borderBottomColor: t.accent }]}
-            />
-          </View>
-
-          <Text style={[styles.label, { color: t.inkMuted }]}>Category</Text>
-          {TYPE_SECTIONS.map(({ type, label }) => {
-            const cats = byType.get(type) ?? [];
-            return (
-              <View key={type} style={styles.typeSection}>
-                <Text style={[styles.typeLabel, { color: t.inkMuted }]}>{label}</Text>
-                {cats.length === 0 ? (
-                  <Text style={{ color: t.inkMuted, fontSize: 11.5, fontStyle: "italic" }}>No {label.toLowerCase()} categories yet</Text>
-                ) : (
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                    {cats.map((c) => {
-                      const selected = c.id === categoryId;
-                      return (
-                        <Pressable
-                          key={c.id}
-                          onPress={() => setCategoryId(c.id)}
-                          style={[
-                            styles.chip,
-                            {
-                              borderColor: selected ? t.accent : t.rule,
-                              backgroundColor: selected ? t.page : "transparent",
-                            },
-                          ]}
-                        >
-                          <Dot color={t.categoryColor(c.color)} size={7} />
-                          <Text style={{ color: t.ink, fontSize: 12, fontWeight: selected ? "600" : "400" }}>{c.name}</Text>
-                        </Pressable>
-                      );
-                    })}
-                  </ScrollView>
-                )}
-              </View>
-            );
-          })}
-
-          <Text style={[styles.label, { color: t.inkMuted }]}>Description</Text>
-          <TextInput
-            value={description}
-            onChangeText={setDescription}
-            placeholder="What was this for?"
-            placeholderTextColor={t.inkMuted}
-            style={[styles.field, { borderColor: t.rule, color: t.ink }]}
-          />
-
-          <Text style={[styles.label, { color: t.inkMuted }]}>Date</Text>
-          <Pressable onPress={() => setShowPicker(true)} style={[styles.field, { borderColor: t.rule }]}>
-            <Text style={{ color: t.ink, fontSize: 14 }}>
-              {date.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}
-            </Text>
-          </Pressable>
-          {showPicker && (
-            <DateTimePicker
-              value={date}
-              mode="date"
-              display={Platform.OS === "ios" ? "inline" : "default"}
-              onChange={(_, selected) => {
-                setShowPicker(Platform.OS === "ios");
-                if (selected) setDate(selected);
-              }}
-            />
-          )}
-
-          <View style={styles.switchRow}>
-            <Text style={{ color: t.ink, fontSize: 14 }}>Mark as paid</Text>
-            <Switch value={isPaid} onValueChange={setIsPaid} trackColor={{ true: t.accent, false: t.rule }} />
-          </View>
-
-          <Pressable
-            onPress={save}
-            disabled={saving}
-            style={[styles.button, { backgroundColor: t.accent, opacity: saving ? 0.6 : 1 }]}
-          >
-            <Text style={{ color: t.accentInk, fontWeight: "600", fontSize: 15 }}>{saving ? "Saving…" : "Save entry"}</Text>
-          </Pressable>
-        </>
-      )}
+      <OptionCard
+        t={t}
+        tint={t.accent}
+        icon="receipt-outline"
+        title="Fixed bill"
+        description="Pick from what's due this month — amount and category are already set."
+        onPress={() => navigation.navigate("FixedDue")}
+      />
+      <OptionCard
+        t={t}
+        tint={t.accent2}
+        icon="create-outline"
+        title="Expense — manual"
+        description="Type in the amount and pick a category yourself."
+        onPress={() => navigation.navigate("ManualEntry", { categoryType: "expense" })}
+      />
+      <OptionCard
+        t={t}
+        tint={t.accent2}
+        icon="clipboard-outline"
+        title="Expense — paste SMS"
+        description="Paste a bank alert and Khata reads the amount and merchant for you."
+        onPress={() => navigation.navigate("SmsReview")}
+      />
+      <OptionCard
+        t={t}
+        tint={t.accent3}
+        icon="wallet-outline"
+        title="Saved"
+        description="Money moved into a savings goal."
+        onPress={() => navigation.navigate("ManualEntry", { categoryType: "saved" })}
+      />
+      <OptionCard
+        t={t}
+        tint={t.accent3}
+        icon="pie-chart-outline"
+        title="Budget"
+        description="Spending against one of your budgets."
+        onPress={() => navigation.navigate("ManualEntry", { categoryType: "budget" })}
+      />
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 18, paddingBottom: 60 },
-  titleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 16 },
-  title: { fontSize: 22 },
-  amountRow: { flexDirection: "row", alignItems: "flex-end", justifyContent: "center", gap: 6, marginBottom: 22 },
-  currency: { fontSize: 16, marginBottom: 8 },
-  amountInput: { fontSize: 44, fontWeight: "600", borderBottomWidth: 2, minWidth: 140, textAlign: "center", paddingBottom: 4 },
-  label: { fontSize: 10, textTransform: "uppercase", letterSpacing: 0.6, marginTop: 16, marginBottom: 8 },
-  typeSection: { marginBottom: 10 },
-  typeLabel: { fontSize: 11, fontWeight: "600", marginBottom: 6 },
-  chip: { flexDirection: "row", alignItems: "center", gap: 6, borderWidth: 1, borderRadius: 20, paddingVertical: 8, paddingHorizontal: 12, marginRight: 8 },
-  field: { borderWidth: 1, borderRadius: 10, padding: 12 },
-  switchRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 20 },
-  button: { marginTop: 28, borderRadius: 10, padding: 14, alignItems: "center" },
+  container: { padding: 18, paddingBottom: 40 },
+  title: { fontSize: 26 },
+  card: { flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 14, borderLeftWidth: 3, padding: 14, marginBottom: 10 },
+  iconWrap: { width: 38, height: 38, borderRadius: 10, alignItems: "center", justifyContent: "center" },
 });

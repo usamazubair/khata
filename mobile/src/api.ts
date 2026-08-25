@@ -111,11 +111,12 @@ export const api = {
     remove: (id: number) => request(`/api/transactions/${id}`, { method: "DELETE" }),
   },
 
-  // Read-only here: bills are created and confirmed from the web dashboard,
-  // the app only needs them to know what to remind you about.
+  // Bills themselves (name, amount, due day) are still defined on the web
+  // dashboard — the app just needs to list what's due and confirm one paid.
   fixedExpenses: {
     list: (month: string) =>
       request(`/api/fixed-expenses?${new URLSearchParams({ month, active: "true" }).toString()}`),
+    confirm: (id: number) => request(`/api/fixed-expenses/${id}/confirm`, { method: "POST", body: JSON.stringify({}) }),
   },
 
   budgets: {

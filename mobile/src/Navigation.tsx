@@ -6,6 +6,8 @@ import { useTheme } from "./theme";
 import ModulesScreen from "./screens/ModulesScreen";
 import HomeScreen from "./screens/HomeScreen";
 import AddScreen from "./screens/AddScreen";
+import ManualEntryScreen from "./screens/ManualEntryScreen";
+import FixedDueScreen from "./screens/FixedDueScreen";
 import TransactionsScreen from "./screens/TransactionsScreen";
 import InsightsScreen from "./screens/InsightsScreen";
 import SettingsScreen from "./screens/SettingsScreen";
@@ -137,6 +139,15 @@ export default function RootNavigator() {
       />
       <Stack.Screen name="WorkoutSession" component={WorkoutSessionScreen} options={{ title: "Workout" }} />
       <Stack.Screen name="SmsReview" component={SmsReviewScreen} options={{ title: "Log from SMS" }} />
+      <Stack.Screen name="FixedDue" component={FixedDueScreen} options={{ title: "Fixed bill" }} />
+      <Stack.Screen
+        name="ManualEntry"
+        component={ManualEntryScreen}
+        options={({ route }: any) => ({
+          title:
+            route.params?.categoryType === "saved" ? "Saved" : route.params?.categoryType === "budget" ? "Budget" : "Expense",
+        })}
+      />
       <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ title: "Notifications" }} />
       <Stack.Screen
         name="WorkoutExercise"
