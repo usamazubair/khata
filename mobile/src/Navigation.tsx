@@ -28,7 +28,7 @@ const Tab = createBottomTabNavigator();
 
 const TRANSACTION_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   Home: "home-outline",
-  Transactions: "list-outline",
+  Entries: "list-outline",
   Add: "add-circle",
   Insights: "stats-chart-outline",
   Settings: "settings-outline",
@@ -68,7 +68,12 @@ function TransactionsTabs() {
   return (
     <Tab.Navigator screenOptions={tabScreenOptions(t, TRANSACTION_ICONS)}>
       <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="Transactions" component={TransactionsScreen} />
+      {/* Named "Entries" rather than "Transactions" -- the outer Stack.Screen
+          for this whole module is already called "Transactions", and React
+          Navigation warns (rightly) about two same-named screens nested
+          inside one another. tabBarLabel keeps what the user actually sees
+          unchanged. */}
+      <Tab.Screen name="Entries" component={TransactionsScreen} options={{ tabBarLabel: "Transactions" }} />
       <Tab.Screen name="Add" component={AddScreen} options={{ tabBarLabel: "Add" }} />
       <Tab.Screen name="Insights" component={InsightsScreen} />
       <Tab.Screen name="Settings" component={SettingsScreen} />
