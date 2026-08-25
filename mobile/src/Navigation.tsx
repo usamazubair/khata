@@ -15,6 +15,7 @@ import WorkoutSessionScreen from "./screens/WorkoutSessionScreen";
 import WorkoutExercisesScreen from "./screens/WorkoutExercisesScreen";
 import WorkoutExerciseScreen from "./screens/WorkoutExerciseScreen";
 import TimetableScreen from "./screens/TimetableScreen";
+import TimetableEntryScreen from "./screens/TimetableEntryScreen";
 import TodoListsScreen from "./screens/TodoListsScreen";
 import TodoListScreen from "./screens/TodoListScreen";
 
@@ -118,6 +119,14 @@ export default function RootNavigator() {
       <Stack.Screen name="Transactions" component={TransactionsTabs} options={{ title: "Transactions" }} />
       <Stack.Screen name="Workout" component={WorkoutTabs} options={{ title: "Workout" }} />
       <Stack.Screen name="Timetable" component={TimetableTabs} options={{ title: "Timetable" }} />
+      <Stack.Screen
+        name="TimetableEntry"
+        component={TimetableEntryScreen}
+        options={({ route }: any) => ({
+          title: route.params?.mode === "edit" ? "Edit entry" : "New entry",
+          presentation: "modal",
+        })}
+      />
       <Stack.Screen name="Todo" component={TodoTabs} options={{ title: "Todo" }} />
       <Stack.Screen
         name="TodoList"

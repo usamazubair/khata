@@ -166,12 +166,16 @@ export const api = {
     list: () => request(`/api/timetable?active=true`),
     occurrences: (from: string, days: number) =>
       request(`/api/timetable/occurrences?${new URLSearchParams({ from, days: String(days) }).toString()}`),
+    create: (body: object) => request("/api/timetable", { method: "POST", body: JSON.stringify(body) }),
+    update: (id: number, body: object) => request(`/api/timetable/${id}`, { method: "PUT", body: JSON.stringify(body) }),
+    remove: (id: number) => request(`/api/timetable/${id}`, { method: "DELETE" }),
   },
 
   // Lists are shaped on the web; tasks are read and written here, because
   // ticking things off is the whole point of having it on a phone.
   todo: {
     lists: () => request(`/api/todo/lists?active=true`),
+    createList: (body: object) => request("/api/todo/lists", { method: "POST", body: JSON.stringify(body) }),
     items: (params: Record<string, string> = {}) =>
       request(`/api/todo/items?${new URLSearchParams(params).toString()}`),
     addItem: (body: object) => request("/api/todo/items", { method: "POST", body: JSON.stringify(body) }),

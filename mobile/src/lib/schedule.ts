@@ -4,6 +4,33 @@
 
 export const WEEKDAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
+/** Postgres numbers weekdays 0 = Sunday; the picker reads Monday-first. */
+export const WEEKDAYS = [
+  { dow: 1, short: "Mon" },
+  { dow: 2, short: "Tue" },
+  { dow: 3, short: "Wed" },
+  { dow: 4, short: "Thu" },
+  { dow: 5, short: "Fri" },
+  { dow: 6, short: "Sat" },
+  { dow: 0, short: "Sun" },
+] as const;
+
+/** Shared with the web dashboard's palette, so an entry looks the same
+ *  colour whichever side created it. */
+export const EVENT_COLORS = ["#2f6bff", "#f4661f", "#00b37e", "#f0a500", "#e0459c", "#12b0c9", "#7b3ff2", "#e33b4e"];
+
+export const REMINDER_OPTIONS = [
+  { value: "", label: "None" },
+  { value: "0", label: "At start" },
+  { value: "5", label: "5 min" },
+  { value: "10", label: "10 min" },
+  { value: "15", label: "15 min" },
+  { value: "30", label: "30 min" },
+  { value: "60", label: "1 hour" },
+  { value: "120", label: "2 hours" },
+  { value: "1440", label: "1 day" },
+];
+
 export const toMinutes = (hhmm: string) => {
   const [h, m] = hhmm.split(":").map(Number);
   return h * 60 + m;

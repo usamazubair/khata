@@ -11,8 +11,8 @@ import { WEEKDAY_SHORT, addDays, dayLabel, duration, formatTime, isoDate } from 
 const HORIZON_DAYS = 14;
 
 /** The next fortnight as an agenda: pick a day along the top, read what's on
- *  it below. Entries themselves are built on the web dashboard. */
-export default function TimetableScreen() {
+ *  it below. Tap an entry to edit it, or the + button to add one. */
+export default function TimetableScreen({ navigation }: any) {
   const t = useTheme();
   const [occurrences, setOccurrences] = useState<TimetableOccurrence[]>([]);
   const [selected, setSelected] = useState(() => isoDate(new Date()));
@@ -107,7 +107,11 @@ export default function TimetableScreen() {
         )}
 
         {forDay.map((o) => (
-          <View key={`${o.id}-${o.date}`} style={styles.row}>
+          <Pressable
+            key={`${o.id}-${o.date}`}
+            onPress={() => navigation.navigate("TimetableEntry", { mode: "edit", event: o })}
+            style={styles.row}
+          >
             <View style={styles.timeRail}>
               <Text style={{ color: t.ink, fontSize: 12.5, fontFamily: fonts.mono }}>{formatTime(o.starts_at)}</Text>
               <Text style={{ color: t.inkMuted, fontSize: 10.5, fontFamily: fonts.mono }}>{formatTime(o.ends_at)}</Text>
@@ -141,13 +145,25 @@ export default function TimetableScreen() {
                 <Text style={{ color: t.inkMuted, fontSize: 12, marginTop: 6 }}>{o.notes}</Text>
               )}
             </View>
-          </View>
+          </Pressable>
         ))}
 
-        <Text style={{ color: t.inkMuted, fontSize: 11, textAlign: "center", marginTop: 22 }}>
-          Entries are added and edited on the web dashboard.
-        </Text>
+        {forDay.length > 0 && (
+          <Text style={{ color: t.inkMuted, fontSize: 11, textAlign: "center", marginTop: 8 }}>
+            Tap an entry to edit or delete it.
+          </Text>
+        )}
       </ScrollView>
+
+      <Pressable
+        onPress={() => {
+          const day = days.find((d) => d.iso === selected);
+          navigation.navigate("TimetableEntry", { mode: "add", dayIso: selected, dow: day?.dow ?? new Date().getDay() });
+        }}
+        style={[styles.fab, { backgroundColor: t.accent }]}
+      >
+        <Ionicons name="add" size={26} color={t.accentInk} />
+      </Pressable>
     </View>
   );
 }
@@ -162,5 +178,20 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", gap: 12, marginBottom: 10 },
   timeRail: { width: 58, paddingTop: 12, alignItems: "flex-end" },
   card: { flex: 1, borderRadius: 12, padding: 13 },
+  fab: {
+    position: "absolute",
+    right: 20,
+    bottom: 22,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 5,
+  },
   meta: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 5 },
 });
