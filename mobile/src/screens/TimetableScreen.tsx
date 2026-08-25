@@ -4,6 +4,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme, fonts } from "../theme";
 import { api } from "../api";
+import { refreshReminders } from "../lib/reminders";
 import { TimetableOccurrence } from "../types";
 import { WEEKDAY_SHORT, addDays, dayLabel, duration, formatTime, isoDate } from "../lib/schedule";
 
@@ -30,6 +31,10 @@ export default function TimetableScreen() {
   useFocusEffect(
     useCallback(() => {
       load();
+      // Entries are edited on the web dashboard, so this is the moment that
+      // matters most: opening the tab is exactly when you'd want a reminder
+      // added five minutes ago on a laptop to actually take effect.
+      refreshReminders();
     }, [load])
   );
 

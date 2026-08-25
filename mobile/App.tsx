@@ -18,7 +18,10 @@ function Root() {
 
   // Rebuild the reminder schedule on sign-in and whenever the app returns to
   // the foreground, so "already trained today" and "this bill is still open"
-  // stay accurate.
+  // stay accurate. Timetable entries and bills are edited on the web
+  // dashboard, though, not on the phone — if the app is just left sitting
+  // open the whole time, neither of those triggers ever fires again, so a
+  // periodic refresh underneath catches anything changed elsewhere.
   useEffect(() => {
     if (!user) return;
     refreshReminders();
@@ -26,7 +29,11 @@ function Root() {
       if (appState.current.match(/inactive|background/) && next === "active") refreshReminders();
       appState.current = next;
     });
-    return () => sub.remove();
+    const interval = setInterval(refreshReminders, 15 * 60_000);
+    return () => {
+      sub.remove();
+      clearInterval(interval);
+    };
   }, [user]);
 
   const navTheme = {

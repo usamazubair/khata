@@ -3,6 +3,7 @@ import { View, Text, ScrollView, StyleSheet, RefreshControl } from "react-native
 import { useFocusEffect } from "@react-navigation/native";
 import { useTheme, fonts } from "../theme";
 import { api, currentMonth, money, ApiNotConfiguredError } from "../api";
+import { refreshReminders } from "../lib/reminders";
 import { Summary } from "../types";
 import Dot from "../components/Dot";
 import ProgressBar from "../components/ProgressBar";
@@ -30,6 +31,9 @@ export default function HomeScreen({ navigation }: any) {
   useFocusEffect(
     useCallback(() => {
       load();
+      // Fixed bills are edited on the web dashboard, so opening Home is a
+      // natural moment to catch a bill added there and pick up its reminder.
+      refreshReminders();
     }, [load])
   );
 
