@@ -130,13 +130,14 @@ export type Exercise = {
   media_type: "image" | "video" | null;
 };
 
-/** A weekly recurring split — "Monday = Push Day" — with its own fixed
- *  exercise list. day_of_week follows Postgres: 0 Sunday … 6 Saturday, one
- *  plan per weekday. */
+/** A split with its own fixed exercise list. day_of_week follows Postgres:
+ *  0 Sunday … 6 Saturday. event_date null means it repeats every week on
+ *  that day (one plan per weekday); a date means it happens once. */
 export type WorkoutPlan = {
   id: number;
   name: string;
   day_of_week: number;
+  event_date: string | null;
   active: boolean;
   sort_order: number;
   exercises: { id: number; exercise_id: number; name: string; category_name: string; category_color: string; sort_order: number }[];

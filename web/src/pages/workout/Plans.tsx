@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { ArrowDown, ArrowUp, Plus, X } from "lucide-react";
-import { del, get, post, put, seriesColor } from "@/lib/api";
+import { del, get, parseDate, post, put, seriesColor } from "@/lib/api";
 import { rowItem, spring } from "@/lib/motion";
 import { WEEKDAYS } from "@/lib/timetable";
 import { Navbar, Page } from "@/components/Shell";
@@ -24,13 +24,16 @@ import type { Exercise, WorkoutPlan } from "@/lib/types";
 type PlanExercise = { exercise_id: number; name: string; category_name: string; category_color: string };
 
 const dayName = (dow: number) => WEEKDAYS.find((d) => d.dow === dow)?.long ?? "";
+const today = () => new Date().toISOString().slice(0, 10);
 
 export default function Plans() {
   const [plans, setPlans] = useState<WorkoutPlan[]>([]);
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [name, setName] = useState("");
+  const [repeats, setRepeats] = useState(true);
   const [dayOfWeek, setDayOfWeek] = useState(1);
+  const [eventDate, setEventDate] = useState(today);
   const [list, setList] = useState<PlanExercise[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -56,7 +59,9 @@ export default function Plans() {
   function reset() {
     setEditingId(null);
     setName("");
+    setRepeats(true);
     setDayOfWeek(1);
+    setEventDate(today());
     setList([]);
     setError(null);
   }
@@ -64,7 +69,9 @@ export default function Plans() {
   function startEdit(p: WorkoutPlan) {
     setEditingId(p.id);
     setName(p.name);
+    setRepeats(!p.event_date);
     setDayOfWeek(p.day_of_week);
+    setEventDate(p.event_date ?? today());
     setList(p.exercises.map((e) => ({ exercise_id: e.exercise_id, name: e.name, category_name: e.category_name, category_color: e.category_color })));
     setError(null);
   }
@@ -94,8 +101,9 @@ export default function Plans() {
     setSaving(true);
     setError(null);
     try {
-      const planId = editingId ?? (await post<WorkoutPlan>("/api/workout-plans", { name: name.trim(), day_of_week: dayOfWeek })).id;
-      if (editingId) await put(`/api/workout-plans/${editingId}`, { name: name.trim(), day_of_week: dayOfWeek });
+      const body = { name: name.trim(), day_of_week: dayOfWeek, event_date: repeats ? null : eventDate };
+      const planId = editingId ?? (await post<WorkoutPlan>("/api/workout-plans", body)).id;
+      if (editingId) await put(`/api/workout-plans/${editingId}`, body);
       await put(`/api/workout-plans/${planId}/exercises`, { exercise_ids: list.map((l) => l.exercise_id) });
       reset();
       await load();
@@ -161,7 +169,11 @@ export default function Plans() {
                     className={cx("border-b border-rule last:border-0", !p.active && "opacity-55")}
                   >
                     <td className="table-cell whitespace-nowrap">
-                      <Pill tone="accent">{dayName(p.day_of_week)}</Pill>
+                      {p.event_date ? (
+                        <Pill tone="neutral">{parseDate(p.event_date).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</Pill>
+                      ) : (
+                        <Pill tone="accent">Every {dayName(p.day_of_week)}</Pill>
+                      )}
                     </td>
                     <td className="table-cell font-semibold">{p.name}</td>
                     <td className="table-cell num text-muted">{p.exercises.length}</td>
@@ -197,33 +209,56 @@ export default function Plans() {
                 <TextInput value={name} onChange={(e) => setName(e.target.value)} placeholder="Push Day" required />
               </Field>
 
-              <Field label="Repeats every">
-                <div className="grid grid-cols-7 gap-1">
-                  {WEEKDAYS.map((d) => {
-                    const on = d.dow === dayOfWeek;
-                    // A weekday already spoken for by another plan reads as
-                    // "in use" rather than silently failing to save.
-                    const takenByOther = plans.some((p) => p.day_of_week === d.dow && p.id !== editingId);
-                    return (
-                      <button
-                        key={d.dow}
-                        type="button"
-                        onClick={() => setDayOfWeek(d.dow)}
-                        title={takenByOther ? "Already has a plan" : undefined}
-                        className={cx(
-                          "relative rounded-lg border px-1 py-2 text-[11px] transition-colors",
-                          on ? "border-accent text-ink" : "border-rule text-muted hover:text-ink",
-                          takenByOther && !on && "opacity-50"
-                        )}
-                      >
-                        {on && (
-                          <motion.span layoutId="plan-day" className="absolute inset-0 rounded-lg bg-accent/12" transition={spring} />
-                        )}
-                        <span className="relative">{d.short}</span>
-                      </button>
-                    );
-                  })}
+              <Field label="When">
+                <div className="mb-2.5 flex gap-1 rounded-xl bg-page2 p-1">
+                  {[
+                    { on: true, label: "Every week" },
+                    { on: false, label: "Just once" },
+                  ].map((o) => (
+                    <button
+                      key={String(o.on)}
+                      type="button"
+                      onClick={() => setRepeats(o.on)}
+                      className="relative flex-1 cursor-pointer rounded-lg px-3 py-1.5 text-xs"
+                    >
+                      {repeats === o.on && (
+                        <motion.span layoutId="plan-repeat-mode" className="absolute inset-0 rounded-lg bg-page shadow-sm" transition={spring} />
+                      )}
+                      <span className={cx("relative", repeats === o.on ? "font-semibold text-ink" : "text-muted")}>{o.label}</span>
+                    </button>
+                  ))}
                 </div>
+
+                {repeats ? (
+                  <div className="grid grid-cols-7 gap-1">
+                    {WEEKDAYS.map((d) => {
+                      const on = d.dow === dayOfWeek;
+                      // A weekday already spoken for by another *repeating* plan reads as
+                      // "in use" — one-off plans don't block a weekday from repeating use.
+                      const takenByOther = plans.some((p) => p.day_of_week === d.dow && p.id !== editingId && !p.event_date);
+                      return (
+                        <button
+                          key={d.dow}
+                          type="button"
+                          onClick={() => setDayOfWeek(d.dow)}
+                          title={takenByOther ? "Already has a plan" : undefined}
+                          className={cx(
+                            "relative rounded-lg border px-1 py-2 text-[11px] transition-colors",
+                            on ? "border-accent text-ink" : "border-rule text-muted hover:text-ink",
+                            takenByOther && !on && "opacity-50"
+                          )}
+                        >
+                          {on && (
+                            <motion.span layoutId="plan-day" className="absolute inset-0 rounded-lg bg-accent/12" transition={spring} />
+                          )}
+                          <span className="relative">{d.short}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <TextInput type="date" value={eventDate} onChange={(e) => setEventDate(e.target.value)} required />
+                )}
               </Field>
 
               <Field label="Exercises, in order">
