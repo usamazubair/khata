@@ -129,7 +129,10 @@ export default function TodoListsScreen({ navigation }: any) {
 
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
         <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          // Android's default resize behavior stopped reliably keeping this
+          // bottom sheet's input above the keyboard once edge-to-edge display
+          // became the default (Expo SDK 53+) -- "height" is the fix.
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
           style={styles.backdrop}
         >
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setOpen(false)} />

@@ -158,7 +158,10 @@ export default function TodoListScreen({ route, navigation }: any) {
   return (
     <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: t.paper }}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      // Android's default resize behavior stopped reliably keeping this
+      // bottom-pinned composer above the keyboard once edge-to-edge display
+      // became the default (Expo SDK 53+) -- "height" is the fix.
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       <ScrollView
         contentContainerStyle={styles.container}

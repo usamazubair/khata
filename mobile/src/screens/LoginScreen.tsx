@@ -29,7 +29,10 @@ export default function LoginScreen() {
   return (
     <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: t.paper }}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      // Android's default resize behavior stopped reliably keeping inputs
+      // above the keyboard once edge-to-edge display became the default
+      // (Expo SDK 53+) -- "height" is the fix.
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         <Text style={[styles.wordmark, { color: t.ink, fontFamily: fonts.display }]}>Khata</Text>
