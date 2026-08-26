@@ -19,6 +19,7 @@ import TimetableScreen from "./screens/TimetableScreen";
 import TimetableEntryScreen from "./screens/TimetableEntryScreen";
 import TodoListsScreen from "./screens/TodoListsScreen";
 import TodoListScreen from "./screens/TodoListScreen";
+import TodoFilteredScreen from "./screens/TodoFilteredScreen";
 import SmsReviewScreen from "./screens/SmsReviewScreen";
 import NotificationsScreen from "./screens/NotificationsScreen";
 
@@ -138,6 +139,11 @@ export default function RootNavigator() {
         name="TodoList"
         component={TodoListScreen}
         options={({ route }: any) => ({ title: route.params?.name ?? "Tasks" })}
+      />
+      <Stack.Screen
+        name="TodoFiltered"
+        component={TodoFilteredScreen}
+        options={({ route }: any) => ({ title: route.params?.title ?? "Tasks" })}
       />
       <Stack.Screen name="WorkoutSession" component={WorkoutSessionScreen} options={{ title: "Workout" }} />
       <Stack.Screen name="SmsReview" component={SmsReviewScreen} options={{ title: "Log from SMS" }} />

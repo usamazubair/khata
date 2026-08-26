@@ -71,6 +71,7 @@ export default function TodoListsScreen({ navigation }: any) {
   }
 
   const totalOpen = lists.reduce((n, l) => n + l.open_count, 0);
+  const totalDone = lists.reduce((n, l) => n + l.done_count, 0);
 
   return (
     <View style={{ flex: 1, backgroundColor: t.paper }}>
@@ -129,6 +130,25 @@ export default function TodoListsScreen({ navigation }: any) {
             </Pressable>
           );
         })}
+
+        <View style={styles.filterRow}>
+          <Pressable
+            onPress={() => navigation.navigate("TodoFiltered", { status: "open", title: "Remaining" })}
+            style={[styles.filterChip, { backgroundColor: t.page2 }]}
+          >
+            <Ionicons name="ellipse-outline" size={17} color={t.status.warning} />
+            <Text style={{ color: t.ink, fontSize: 12.5, fontWeight: "600", marginTop: 4 }}>Remaining</Text>
+            <Text style={{ color: t.inkMuted, fontSize: 11, fontFamily: fonts.mono }}>{totalOpen}</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => navigation.navigate("TodoFiltered", { status: "done", title: "Completed" })}
+            style={[styles.filterChip, { backgroundColor: t.page2 }]}
+          >
+            <Ionicons name="checkmark-circle-outline" size={17} color={t.status.good} />
+            <Text style={{ color: t.ink, fontSize: 12.5, fontWeight: "600", marginTop: 4 }}>Completed</Text>
+            <Text style={{ color: t.inkMuted, fontSize: 11, fontFamily: fonts.mono }}>{totalDone}</Text>
+          </Pressable>
+        </View>
       </ScrollView>
 
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
@@ -209,6 +229,8 @@ const styles = StyleSheet.create({
   cardHead: { flexDirection: "row", alignItems: "center", gap: 10 },
   icon: { fontSize: 20 },
   meta: { flexDirection: "row", alignItems: "center", marginTop: 7 },
+  filterRow: { flexDirection: "row", gap: 11, marginTop: 7 },
+  filterChip: { flex: 1, borderRadius: 14, paddingVertical: 14, alignItems: "center" },
   backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "flex-end" },
   sheet: { borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 34 },
   sheetTitle: { fontSize: 19, marginBottom: 14 },

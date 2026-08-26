@@ -1,28 +1,23 @@
 import { useCallback, useEffect, useState } from "react";
 import {
-  View, Text, TextInput, Pressable, ScrollView, StyleSheet, Alert, RefreshControl,
+  View, Text, TextInput, Pressable, ScrollView, StyleSheet, Alert, RefreshControl, Platform,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { Ionicons } from "@expo/vector-icons";
-import { useTheme, fonts } from "../theme";
-import { api, parseDate } from "../api";
+import { useTheme } from "../theme";
+import { api } from "../api";
 import { TodoItem } from "../types";
 import { useKeyboardClearance } from "../lib/useKeyboardOffset";
+import { isoDate } from "../lib/schedule";
+import TodoItemRow from "../components/TodoItemRow";
 
-/** How a due date reads relative to today. Compared as calendar days so
- *  "Today" doesn't flip at 00:00 UTC. */
-function dueLabel(iso: string) {
-  const due = parseDate(iso);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const days = Math.round((due.getTime() - today.getTime()) / 86_400_000);
-  if (days < 0) return { text: days === -1 ? "Yesterday" : `${Math.abs(days)} days late`, late: true };
-  if (days === 0) return { text: "Today", soon: true };
-  if (days === 1) return { text: "Tomorrow", soon: true };
-  if (days <= 6) return { text: due.toLocaleDateString(undefined, { weekday: "long" }) };
-  return { text: due.toLocaleDateString(undefined, { month: "short", day: "numeric" }) };
-}
+const PRIORITIES = [
+  { value: 0, label: "None", icon: "flag-outline" as const },
+  { value: 1, label: "Medium", icon: "flag" as const },
+  { value: 2, label: "High", icon: "flag" as const },
+];
 
 export default function TodoListScreen({ route, navigation }: any) {
   const t = useTheme();
@@ -30,6 +25,9 @@ export default function TodoListScreen({ route, navigation }: any) {
 
   const [items, setItems] = useState<TodoItem[]>([]);
   const [title, setTitle] = useState("");
+  const [dueDate, setDueDate] = useState<string | null>(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [priority, setPriority] = useState(0);
   const [busy, setBusy] = useState(false);
   const [showDone, setShowDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -59,15 +57,21 @@ export default function TodoListScreen({ route, navigation }: any) {
   async function add() {
     const text = title.trim();
     if (!text) return;
+    const dueAtAdd = dueDate;
+    const priorityAtAdd = priority;
     setBusy(true);
     // Clear straight away — waiting on the round trip makes rattling off
     // several tasks feel sticky.
     setTitle("");
+    setDueDate(null);
+    setPriority(0);
     try {
-      await api.todo.addItem({ list_id: listId, title: text });
+      await api.todo.addItem({ list_id: listId, title: text, due_date: dueAtAdd, priority: priorityAtAdd });
       await load();
     } catch (err: any) {
       setTitle(text);
+      setDueDate(dueAtAdd);
+      setPriority(priorityAtAdd);
       Alert.alert("Couldn't add that", err.message);
     } finally {
       setBusy(false);
@@ -113,52 +117,6 @@ export default function TodoListScreen({ route, navigation }: any) {
   const open = items.filter((i) => !i.done);
   const done = items.filter((i) => i.done);
 
-  const row = (item: TodoItem, last: boolean) => {
-    const due = item.due_date ? dueLabel(item.due_date) : null;
-    const dueColor = due?.late ? t.status.critical : due?.soon ? t.status.warning : t.inkMuted;
-    return (
-      <Pressable key={item.id} onLongPress={() => remove(item)} style={[styles.item, { borderColor: t.rule, borderBottomWidth: last ? 0 : StyleSheet.hairlineWidth }]}>
-        <Pressable onPress={() => toggle(item)} hitSlop={10} style={styles.checkbox}>
-          <View
-            style={[
-              styles.box,
-              { borderColor: item.done ? t.status.good : t.rule, backgroundColor: item.done ? t.status.good : "transparent" },
-            ]}
-          >
-            {item.done && <Ionicons name="checkmark" size={13} color="#fff" />}
-          </View>
-        </Pressable>
-
-        <View style={{ flex: 1 }}>
-          <Text
-            style={{
-              color: item.done ? t.inkMuted : t.ink,
-              fontSize: 14,
-              textDecorationLine: item.done ? "line-through" : "none",
-            }}
-          >
-            {item.title}
-          </Text>
-          <View style={styles.itemMeta}>
-            {due && !item.done && <Text style={{ color: dueColor, fontSize: 11 }}>{due.text}</Text>}
-            {item.priority > 0 && !item.done && (
-              <Ionicons
-                name="flag"
-                size={10}
-                color={item.priority === 2 ? t.status.critical : t.status.warning}
-              />
-            )}
-            {!!item.notes && (
-              <Text style={{ color: t.inkMuted, fontSize: 11 }} numberOfLines={1}>
-                {item.notes}
-              </Text>
-            )}
-          </View>
-        </View>
-      </Pressable>
-    );
-  };
-
   return (
     // Tracking the keyboard's own height and padding by that amount, rather
     // than leaning on KeyboardAvoidingView, since Android's native
@@ -179,7 +137,15 @@ export default function TodoListScreen({ route, navigation }: any) {
               {items.length ? "All clear. 🎉" : "Nothing here yet — add your first task below."}
             </Text>
           ) : (
-            open.map((item, i) => row(item, i === open.length - 1))
+            open.map((item, i) => (
+              <TodoItemRow
+                key={item.id}
+                item={item}
+                last={i === open.length - 1}
+                onToggle={() => toggle(item)}
+                onDelete={() => remove(item)}
+              />
+            ))
           )}
         </View>
 
@@ -191,34 +157,92 @@ export default function TodoListScreen({ route, navigation }: any) {
             </Pressable>
             {showDone && (
               <View style={[styles.card, { backgroundColor: t.page2 }]}>
-                {done.map((item, i) => row(item, i === done.length - 1))}
+                {done.map((item, i) => (
+                  <TodoItemRow
+                    key={item.id}
+                    item={item}
+                    last={i === done.length - 1}
+                    onToggle={() => toggle(item)}
+                    onDelete={() => remove(item)}
+                  />
+                ))}
               </View>
             )}
           </>
         )}
 
         <Text style={{ color: t.inkMuted, fontSize: 11, textAlign: "center", marginTop: 18 }}>
-          Long-press a task to delete it · dates and priorities are set on the web
+          Long-press a task to delete it
         </Text>
       </ScrollView>
 
       <View style={[styles.composer, { backgroundColor: t.page2, borderTopColor: t.rule }]}>
-        <TextInput
-          value={title}
-          onChangeText={setTitle}
-          placeholder="Add a task…"
-          placeholderTextColor={t.inkMuted}
-          returnKeyType="done"
-          onSubmitEditing={add}
-          style={[styles.input, { borderColor: t.rule, color: t.ink, backgroundColor: t.page }]}
-        />
-        <Pressable
-          onPress={add}
-          disabled={busy || !title.trim()}
-          style={[styles.addButton, { backgroundColor: t.accent, opacity: busy || !title.trim() ? 0.5 : 1 }]}
-        >
-          <Ionicons name="add" size={22} color={t.accentInk} />
-        </Pressable>
+        <View style={styles.optionsRow}>
+          <Pressable
+            onPress={() => setShowDatePicker(true)}
+            style={[styles.optionChip, { borderColor: dueDate ? t.accent : t.rule, backgroundColor: dueDate ? t.accent + "1a" : "transparent" }]}
+          >
+            <Ionicons name="calendar-outline" size={13} color={dueDate ? t.accent : t.inkMuted} />
+            <Text style={{ color: dueDate ? t.accent : t.inkMuted, fontSize: 11.5 }}>
+              {dueDate ? new Date(`${dueDate}T00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "Date"}
+            </Text>
+            {!!dueDate && (
+              <Pressable onPress={() => setDueDate(null)} hitSlop={8}>
+                <Ionicons name="close-circle" size={13} color={t.accent} />
+              </Pressable>
+            )}
+          </Pressable>
+
+          <Pressable
+            onPress={() => setPriority((p) => (p + 1) % 3)}
+            style={[
+              styles.optionChip,
+              {
+                borderColor: priority > 0 ? (priority === 2 ? t.status.critical : t.status.warning) : t.rule,
+                backgroundColor: priority > 0 ? (priority === 2 ? t.status.critical : t.status.warning) + "1a" : "transparent",
+              },
+            ]}
+          >
+            <Ionicons
+              name={PRIORITIES[priority].icon}
+              size={13}
+              color={priority > 0 ? (priority === 2 ? t.status.critical : t.status.warning) : t.inkMuted}
+            />
+            <Text style={{ color: priority > 0 ? (priority === 2 ? t.status.critical : t.status.warning) : t.inkMuted, fontSize: 11.5 }}>
+              {PRIORITIES[priority].label}
+            </Text>
+          </Pressable>
+        </View>
+
+        {showDatePicker && (
+          <DateTimePicker
+            value={dueDate ? new Date(`${dueDate}T00:00`) : new Date()}
+            mode="date"
+            display={Platform.OS === "ios" ? "inline" : "default"}
+            onChange={(_, selected) => {
+              setShowDatePicker(Platform.OS === "ios");
+              if (selected) setDueDate(isoDate(selected));
+            }}
+          />
+        )}
+
+        <View style={styles.composerRow}>
+          <TextInput
+            value={title}
+            onChangeText={setTitle}
+            placeholder="Add a task…"
+            placeholderTextColor={t.inkMuted}
+            multiline
+            style={[styles.input, { borderColor: t.rule, color: t.ink, backgroundColor: t.page }]}
+          />
+          <Pressable
+            onPress={add}
+            disabled={busy || !title.trim()}
+            style={[styles.addButton, { backgroundColor: t.accent, opacity: busy || !title.trim() ? 0.5 : 1 }]}
+          >
+            <Ionicons name="add" size={22} color={t.accentInk} />
+          </Pressable>
+        </View>
       </View>
     </View>
   );
@@ -227,12 +251,19 @@ export default function TodoListScreen({ route, navigation }: any) {
 const styles = StyleSheet.create({
   container: { padding: 18, paddingBottom: 30 },
   card: { borderRadius: 12, paddingHorizontal: 14 },
-  item: { flexDirection: "row", alignItems: "flex-start", gap: 11, paddingVertical: 11 },
-  checkbox: { paddingTop: 1 },
-  box: { width: 19, height: 19, borderRadius: 5, borderWidth: 2, alignItems: "center", justifyContent: "center" },
-  itemMeta: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 3 },
   doneToggle: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 16, marginBottom: 8 },
-  composer: { flexDirection: "row", alignItems: "center", gap: 10, padding: 12, borderTopWidth: 1 },
-  input: { flex: 1, borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 11, fontSize: 14 },
+  composer: { padding: 12, borderTopWidth: 1 },
+  optionsRow: { flexDirection: "row", gap: 8, marginBottom: 8 },
+  optionChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    borderWidth: 1,
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  composerRow: { flexDirection: "row", alignItems: "flex-end", gap: 10 },
+  input: { flex: 1, borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 11, fontSize: 14, maxHeight: 110 },
   addButton: { width: 42, height: 42, borderRadius: 10, alignItems: "center", justifyContent: "center" },
 });
