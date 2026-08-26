@@ -8,7 +8,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme, fonts } from "../theme";
 import { api, parseDate } from "../api";
 import { TodoItem } from "../types";
-import { useKeyboardOffset } from "../lib/useKeyboardOffset";
+import { useKeyboardClearance } from "../lib/useKeyboardOffset";
 
 /** How a due date reads relative to today. Compared as calendar days so
  *  "Today" doesn't flip at 00:00 UTC. */
@@ -34,12 +34,8 @@ export default function TodoListScreen({ route, navigation }: any) {
   const [showDone, setShowDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const keyboardOffset = useKeyboardOffset();
   const insets = useSafeAreaInsets();
-  // With the keyboard open, its own height already clears the system nav
-  // bar; closed, the composer needs the nav bar's inset instead so it isn't
-  // the one thing on this (tab-bar-less) screen sitting flush behind it.
-  const bottomPad = keyboardOffset > 0 ? keyboardOffset : insets.bottom;
+  const bottomPad = useKeyboardClearance(insets);
 
   const load = useCallback(async () => {
     try {

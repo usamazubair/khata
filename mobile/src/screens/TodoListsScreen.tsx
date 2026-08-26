@@ -8,7 +8,7 @@ import { api } from "../api";
 import { TodoList } from "../types";
 import { EVENT_COLORS } from "../lib/schedule";
 import ProgressBar from "../components/ProgressBar";
-import { useKeyboardOffset } from "../lib/useKeyboardOffset";
+import { useKeyboardClearance } from "../lib/useKeyboardOffset";
 
 const LIST_ICONS = ["🗂️", "🏠", "🚗", "🛒", "💼", "🎓", "🧰", "✈️", "🎁", "💊", "📚", "🐾"];
 
@@ -25,13 +25,8 @@ export default function TodoListsScreen({ navigation }: any) {
   const [icon, setIcon] = useState(LIST_ICONS[0]);
   const [color, setColor] = useState(EVENT_COLORS[0]);
   const [saving, setSaving] = useState(false);
-  const keyboardOffset = useKeyboardOffset();
   const insets = useSafeAreaInsets();
-  // With the keyboard open, its own height already clears the system nav
-  // bar; closed, the sheet needs the nav bar's inset instead so "Cancel"
-  // isn't the one thing sitting flush behind it -- this Modal renders above
-  // the tab bar that would otherwise have handled that.
-  const bottomPad = keyboardOffset > 0 ? keyboardOffset : insets.bottom;
+  const bottomPad = useKeyboardClearance(insets);
 
   const load = useCallback(async () => {
     try {
