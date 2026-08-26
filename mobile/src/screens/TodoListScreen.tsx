@@ -3,6 +3,7 @@ import {
   View, Text, TextInput, Pressable, ScrollView, StyleSheet, Alert, RefreshControl,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme, fonts } from "../theme";
 import { api, parseDate } from "../api";
@@ -34,6 +35,11 @@ export default function TodoListScreen({ route, navigation }: any) {
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const keyboardOffset = useKeyboardOffset();
+  const insets = useSafeAreaInsets();
+  // With the keyboard open, its own height already clears the system nav
+  // bar; closed, the composer needs the nav bar's inset instead so it isn't
+  // the one thing on this (tab-bar-less) screen sitting flush behind it.
+  const bottomPad = keyboardOffset > 0 ? keyboardOffset : insets.bottom;
 
   const load = useCallback(async () => {
     try {
@@ -163,7 +169,7 @@ export default function TodoListScreen({ route, navigation }: any) {
     // resize/pan/height behaviors have proven unreliable across OEM skins
     // (Samsung's One UI in particular) since edge-to-edge display became the
     // Android default -- this works the same regardless of device or OS quirk.
-    <View style={{ flex: 1, backgroundColor: t.paper, paddingBottom: keyboardOffset }}>
+    <View style={{ flex: 1, backgroundColor: t.paper, paddingBottom: bottomPad }}>
       <ScrollView
         contentContainerStyle={styles.container}
         keyboardShouldPersistTaps="handled"

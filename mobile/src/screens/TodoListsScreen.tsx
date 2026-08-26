@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import { View, Text, TextInput, ScrollView, Pressable, StyleSheet, RefreshControl, Modal, Alert } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme, fonts } from "../theme";
 import { api } from "../api";
@@ -25,6 +26,12 @@ export default function TodoListsScreen({ navigation }: any) {
   const [color, setColor] = useState(EVENT_COLORS[0]);
   const [saving, setSaving] = useState(false);
   const keyboardOffset = useKeyboardOffset();
+  const insets = useSafeAreaInsets();
+  // With the keyboard open, its own height already clears the system nav
+  // bar; closed, the sheet needs the nav bar's inset instead so "Cancel"
+  // isn't the one thing sitting flush behind it -- this Modal renders above
+  // the tab bar that would otherwise have handled that.
+  const bottomPad = keyboardOffset > 0 ? keyboardOffset : insets.bottom;
 
   const load = useCallback(async () => {
     try {
@@ -135,7 +142,7 @@ export default function TodoListsScreen({ navigation }: any) {
             native resize/pan/height behaviors have proven unreliable across
             OEM skins (Samsung's One UI in particular). The backdrop is
             flex-end, so this padding pushes the sheet up above the keyboard. */}
-        <View style={[styles.backdrop, { paddingBottom: keyboardOffset }]}>
+        <View style={[styles.backdrop, { paddingBottom: bottomPad }]}>
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setOpen(false)} />
           <View style={[styles.sheet, { backgroundColor: t.page }]}>
             <Text style={[styles.sheetTitle, { color: t.ink, fontFamily: fonts.display }]}>New list</Text>
