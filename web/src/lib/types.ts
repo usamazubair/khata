@@ -105,11 +105,22 @@ export type Summary = {
   fixed_remaining: number;
 };
 
+export type ExerciseCategory = {
+  id: number;
+  name: string;
+  slug: string;
+  color: string;
+  sort_order: number;
+  active: boolean;
+};
+
 export type Exercise = {
   id: number;
   name: string;
   slug: string;
-  muscle_group: string;
+  category_id: number;
+  category_name: string;
+  category_color: string;
   equipment: string;
   notes: string;
   sort_order: number;
@@ -119,34 +130,50 @@ export type Exercise = {
   media_type: "image" | "video" | null;
 };
 
-export type WorkoutSet = {
+/** A weekly recurring split — "Monday = Push Day" — with its own fixed
+ *  exercise list. day_of_week follows Postgres: 0 Sunday … 6 Saturday, one
+ *  plan per weekday. */
+export type WorkoutPlan = {
+  id: number;
+  name: string;
+  day_of_week: number;
+  active: boolean;
+  sort_order: number;
+  exercises: { id: number; exercise_id: number; name: string; category_name: string; category_color: string; sort_order: number }[];
+};
+
+/** One exercise on a session's checklist — the primary interaction. Ticking
+ *  it complete is all logging asks for; notes are optional and freeform. */
+export type WorkoutSessionExercise = {
   id: number;
   session_id: number;
   exercise_id: number;
   exercise_name: string;
-  muscle_group: string;
-  reps: number;
-  weight: string;
-  set_order: number;
+  category_name: string;
+  category_color: string;
+  media_url: string | null;
+  media_type: "image" | "video" | null;
+  sort_order: number;
+  completed: boolean;
+  completed_at: string | null;
+  notes: string;
 };
 
 export type WorkoutSession = {
   id: number;
+  plan_id: number | null;
   name: string;
   occurred_on: string;
   notes: string;
-  set_count: number;
-  total_reps: number;
-  volume: number;
-  sets?: WorkoutSet[];
+  total_exercises: number;
+  completed_exercises: number;
+  exercises?: WorkoutSessionExercise[];
 };
 
 export type WorkoutSummary = {
-  this_week: { sessions: number; volume: number; reps: number };
-  last_week: { sessions: number; volume: number };
-  totals: { total_sessions: number; active_exercises: number; total_sets: number };
+  this_week: WorkoutSession[];
   recent: WorkoutSession[];
-  top_exercises: { name: string; volume: number; sets: number }[];
+  totals: { total_sessions: number; active_exercises: number; active_plans: number };
 };
 
 /* ── Timetable ───────────────────────────────────────────────────────────

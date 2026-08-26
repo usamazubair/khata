@@ -13,6 +13,8 @@ import WorkoutOverview from "@/pages/workout/Overview";
 import Sessions from "@/pages/workout/Sessions";
 import SessionDetail from "@/pages/workout/SessionDetail";
 import Exercises from "@/pages/workout/Exercises";
+import ExerciseCategories from "@/pages/workout/Categories";
+import Plans from "@/pages/workout/Plans";
 import Week from "@/pages/timetable/Week";
 import AllEvents from "@/pages/timetable/AllEvents";
 import Board from "@/pages/todo/Board";
@@ -43,6 +45,8 @@ function AppRoutes() {
         <Route path="/workout/sessions" element={<Sessions />} />
         <Route path="/workout/sessions/:id" element={<SessionDetail />} />
         <Route path="/workout/exercises" element={<Exercises />} />
+        <Route path="/workout/categories" element={<ExerciseCategories />} />
+        <Route path="/workout/plans" element={<Plans />} />
 
         <Route path="/timetable" element={<Week />} />
         <Route path="/timetable/all" element={<AllEvents />} />

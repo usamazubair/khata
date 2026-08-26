@@ -25,7 +25,9 @@ export const MODULE_NAV = {
     links: [
       { to: "/workout", label: "Overview", end: true },
       { to: "/workout/sessions", label: "Sessions" },
+      { to: "/workout/plans", label: "Plans" },
       { to: "/workout/exercises", label: "Exercises" },
+      { to: "/workout/categories", label: "Categories" },
     ],
   },
   timetable: {

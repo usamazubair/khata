@@ -6,6 +6,12 @@ const { destroyAsset, isConfigured, signUpload } = require("../cloudinary");
 
 const router = express.Router();
 
+const SELECT = `
+  SELECT e.*, ec.name AS category_name, ec.color AS category_color
+  FROM exercises e
+  JOIN exercise_categories ec ON ec.id = e.category_id
+`;
+
 /** Hands the client a short-lived signature so it can upload straight to
  *  Cloudinary. Behind the same auth + module gate as everything else, so a
  *  signature is never available to someone without Workout access. */
@@ -20,21 +26,23 @@ router.post("/upload-signature", asyncHandler(async (req, res) => {
 }));
 
 router.get("/", asyncHandler(async (req, res) => {
-  const { active, q } = req.query;
+  const { active, category_id, q } = req.query;
   const clauses = [];
   const params = [];
   if (active === "true" || active === "false") {
     params.push(active === "true");
-    clauses.push(`active = $${params.length}`);
+    clauses.push(`e.active = $${params.length}`);
+  }
+  if (category_id) {
+    params.push(Number(category_id));
+    clauses.push(`e.category_id = $${params.length}`);
   }
   if (q && String(q).trim()) {
     params.push(`%${String(q).trim()}%`);
-    clauses.push(
-      `(name ILIKE $${params.length} OR muscle_group ILIKE $${params.length} OR equipment ILIKE $${params.length})`
-    );
+    clauses.push(`(e.name ILIKE $${params.length} OR ec.name ILIKE $${params.length} OR e.equipment ILIKE $${params.length})`);
   }
   const { rows } = await pool.query(
-    `SELECT * FROM exercises ${clauses.length ? `WHERE ${clauses.join(" AND ")}` : ""} ORDER BY sort_order, name`,
+    `${SELECT} ${clauses.length ? `WHERE ${clauses.join(" AND ")}` : ""} ORDER BY e.sort_order, e.name`,
     params
   );
   res.json(rows);
@@ -43,7 +51,7 @@ router.get("/", asyncHandler(async (req, res) => {
 router.post("/", asyncHandler(async (req, res) => {
   const {
     name,
-    muscle_group = "",
+    category_id,
     equipment = "",
     notes = "",
     active = true,
@@ -52,17 +60,18 @@ router.post("/", asyncHandler(async (req, res) => {
     media_type = null,
   } = req.body;
   if (!name || !String(name).trim()) return res.status(400).json({ error: "Exercise name is required." });
+  if (!category_id) return res.status(400).json({ error: "A category is required." });
 
   try {
     const { rows: last } = await pool.query("SELECT COALESCE(MAX(sort_order), 0) + 1 AS next FROM exercises");
     const { rows } = await pool.query(
-      `INSERT INTO exercises (name, slug, muscle_group, equipment, notes, sort_order, active,
+      `INSERT INTO exercises (name, slug, category_id, equipment, notes, sort_order, active,
                               media_url, media_public_id, media_type)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
       [
         String(name).trim(),
         await uniqueSlug("exercises", name),
-        muscle_group,
+        category_id,
         equipment,
         notes,
         last[0].next,
@@ -72,15 +81,17 @@ router.post("/", asyncHandler(async (req, res) => {
         media_type,
       ]
     );
-    res.status(201).json(rows[0]);
+    const { rows: full } = await pool.query(`${SELECT} WHERE e.id = $1`, [rows[0].id]);
+    res.status(201).json(full[0]);
   } catch (err) {
     if (err.code === "23505") return res.status(409).json({ error: "An exercise with that name already exists." });
+    if (err.code === "23503") return res.status(400).json({ error: "That category doesn't exist." });
     throw err;
   }
 }));
 
 router.put("/:id", asyncHandler(async (req, res) => {
-  const { name, muscle_group, equipment, notes, sort_order, active, media_url, media_public_id, media_type } =
+  const { name, category_id, equipment, notes, sort_order, active, media_url, media_public_id, media_type } =
     req.body;
 
   const { rows: before } = await pool.query("SELECT * FROM exercises WHERE id = $1", [req.params.id]);
@@ -91,34 +102,40 @@ router.put("/:id", asyncHandler(async (req, res) => {
   const touchingMedia = "media_url" in req.body || "media_public_id" in req.body;
   const slug = name ? await uniqueSlug("exercises", name, req.params.id) : null;
 
-  const { rows } = await pool.query(
-    `UPDATE exercises SET
-       name = COALESCE($1, name),
-       slug = COALESCE($2, slug),
-       muscle_group = COALESCE($3, muscle_group),
-       equipment = COALESCE($4, equipment),
-       notes = COALESCE($5, notes),
-       sort_order = COALESCE($6, sort_order),
-       active = COALESCE($7, active),
-       media_url = CASE WHEN $8::boolean THEN $9 ELSE media_url END,
-       media_public_id = CASE WHEN $8::boolean THEN $10 ELSE media_public_id END,
-       media_type = CASE WHEN $8::boolean THEN $11 ELSE media_type END
-     WHERE id = $12 RETURNING *`,
-    [
-      name,
-      slug,
-      muscle_group,
-      equipment,
-      notes,
-      sort_order,
-      active,
-      touchingMedia,
-      media_url ?? null,
-      media_public_id ?? null,
-      media_type ?? null,
-      req.params.id,
-    ]
-  );
+  let rows;
+  try {
+    ({ rows } = await pool.query(
+      `UPDATE exercises SET
+         name = COALESCE($1, name),
+         slug = COALESCE($2, slug),
+         category_id = COALESCE($3, category_id),
+         equipment = COALESCE($4, equipment),
+         notes = COALESCE($5, notes),
+         sort_order = COALESCE($6, sort_order),
+         active = COALESCE($7, active),
+         media_url = CASE WHEN $8::boolean THEN $9 ELSE media_url END,
+         media_public_id = CASE WHEN $8::boolean THEN $10 ELSE media_public_id END,
+         media_type = CASE WHEN $8::boolean THEN $11 ELSE media_type END
+       WHERE id = $12 RETURNING *`,
+      [
+        name,
+        slug,
+        category_id ?? null,
+        equipment,
+        notes,
+        sort_order,
+        active,
+        touchingMedia,
+        media_url ?? null,
+        media_public_id ?? null,
+        media_type ?? null,
+        req.params.id,
+      ]
+    ));
+  } catch (err) {
+    if (err.code === "23503") return res.status(400).json({ error: "That category doesn't exist." });
+    throw err;
+  }
 
   // Replacing or clearing media leaves the old file stranded on Cloudinary.
   const oldId = before[0].media_public_id;
@@ -126,7 +143,8 @@ router.put("/:id", asyncHandler(async (req, res) => {
     await destroyAsset(oldId, before[0].media_type ?? "image");
   }
 
-  res.json(rows[0]);
+  const { rows: full } = await pool.query(`${SELECT} WHERE e.id = $1`, [rows[0].id]);
+  res.json(full[0]);
 }));
 
 router.delete("/:id", asyncHandler(async (req, res) => {
@@ -137,7 +155,7 @@ router.delete("/:id", asyncHandler(async (req, res) => {
     await pool.query("DELETE FROM exercises WHERE id = $1", [req.params.id]);
   } catch (err) {
     if (err.code === "23503") {
-      return res.status(409).json({ error: "This exercise is used by logged sets — deactivate it instead." });
+      return res.status(409).json({ error: "This exercise is used by a plan or a logged session — deactivate it instead." });
     }
     throw err;
   }

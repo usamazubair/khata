@@ -131,32 +131,80 @@ INSERT INTO categories (name, slug, type, color, sort_order) VALUES
   ('Rent',            'rent',            'fixed',   '#e34948', 8);
 
 -- ── Workout module tables ─────────────────────────────────────────────────
--- Exercises are the library (managed on the web, like categories); a session
--- is one workout on a date; sets are what you actually logged inside it.
+-- Exercises belong to a category (managed on the web, like transaction
+-- categories). A workout_plan is a recurring weekly split -- "Monday = Push
+-- Day" -- with its own fixed exercise list; a workout_session is one real,
+-- dated occurrence, generated from a plan (or created ad hoc), whose
+-- exercises you simply tick complete and annotate. workout_sets (reps and
+-- weight) still exists for anyone who wants that level of detail, but the
+-- session-exercise checklist is the primary, low-friction interaction.
+
+CREATE TABLE exercise_categories (
+  id         SERIAL PRIMARY KEY,
+  name       TEXT NOT NULL UNIQUE,
+  slug       TEXT NOT NULL UNIQUE,
+  color      TEXT NOT NULL DEFAULT '#2f6bff',
+  sort_order INT NOT NULL DEFAULT 0,
+  active     BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 
 CREATE TABLE exercises (
-  id           SERIAL PRIMARY KEY,
-  name         TEXT NOT NULL UNIQUE,
-  slug         TEXT NOT NULL UNIQUE,
-  muscle_group TEXT NOT NULL DEFAULT '',
-  equipment    TEXT NOT NULL DEFAULT '',
-  notes        TEXT NOT NULL DEFAULT '',
-  sort_order   INT NOT NULL DEFAULT 0,
-  active       BOOLEAN NOT NULL DEFAULT TRUE,
+  id          SERIAL PRIMARY KEY,
+  name        TEXT NOT NULL UNIQUE,
+  slug        TEXT NOT NULL UNIQUE,
+  category_id INT NOT NULL REFERENCES exercise_categories(id) ON DELETE RESTRICT,
+  equipment   TEXT NOT NULL DEFAULT '',
+  notes       TEXT NOT NULL DEFAULT '',
+  sort_order  INT NOT NULL DEFAULT 0,
+  active      BOOLEAN NOT NULL DEFAULT TRUE,
   -- A demo image or short clip; the file lives on Cloudinary, we keep the
   -- delivery URL plus the public_id needed to replace or delete it.
   media_url       TEXT,
   media_public_id TEXT,
   media_type      TEXT CHECK (media_type IS NULL OR media_type IN ('image', 'video')),
-  created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- day_of_week follows Postgres EXTRACT(DOW), same convention as
+-- timetable_events: 0 = Sunday ... 6 = Saturday. One plan per weekday.
+CREATE TABLE workout_plans (
+  id          SERIAL PRIMARY KEY,
+  name        TEXT NOT NULL,
+  day_of_week SMALLINT NOT NULL UNIQUE CHECK (day_of_week BETWEEN 0 AND 6),
+  active      BOOLEAN NOT NULL DEFAULT TRUE,
+  sort_order  INT NOT NULL DEFAULT 0,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE workout_plan_exercises (
+  id          SERIAL PRIMARY KEY,
+  plan_id     INT NOT NULL REFERENCES workout_plans(id) ON DELETE CASCADE,
+  exercise_id INT NOT NULL REFERENCES exercises(id) ON DELETE RESTRICT,
+  sort_order  INT NOT NULL DEFAULT 0,
+  UNIQUE (plan_id, exercise_id)
 );
 
 CREATE TABLE workout_sessions (
   id          SERIAL PRIMARY KEY,
+  plan_id     INT REFERENCES workout_plans(id),
   name        TEXT NOT NULL DEFAULT '',
   occurred_on DATE NOT NULL DEFAULT CURRENT_DATE,
   notes       TEXT NOT NULL DEFAULT '',
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- The completion checklist: one row per exercise in a session, ticked off
+-- independently of every other week's occurrence of the same exercise.
+CREATE TABLE workout_session_exercises (
+  id           SERIAL PRIMARY KEY,
+  session_id   INT NOT NULL REFERENCES workout_sessions(id) ON DELETE CASCADE,
+  exercise_id  INT NOT NULL REFERENCES exercises(id) ON DELETE RESTRICT,
+  sort_order   INT NOT NULL DEFAULT 0,
+  completed    BOOLEAN NOT NULL DEFAULT FALSE,
+  completed_at TIMESTAMPTZ,
+  notes        TEXT NOT NULL DEFAULT '',
+  UNIQUE (session_id, exercise_id)
 );
 
 CREATE TABLE workout_sets (
@@ -170,16 +218,31 @@ CREATE TABLE workout_sets (
 );
 
 CREATE INDEX idx_sessions_date ON workout_sessions (occurred_on DESC);
+CREATE INDEX idx_sessions_plan ON workout_sessions (plan_id, occurred_on);
+CREATE INDEX idx_plan_exercises_plan ON workout_plan_exercises (plan_id, sort_order);
+CREATE INDEX idx_session_exercises_session ON workout_session_exercises (session_id, sort_order);
 CREATE INDEX idx_sets_session ON workout_sets (session_id);
 CREATE INDEX idx_sets_exercise ON workout_sets (exercise_id);
 
-INSERT INTO exercises (name, slug, muscle_group, equipment, sort_order) VALUES
-  ('Bench Press',    'bench-press',    'Chest',     'Barbell',    1),
-  ('Squat',          'squat',          'Legs',      'Barbell',    2),
-  ('Deadlift',       'deadlift',       'Back',      'Barbell',    3),
-  ('Overhead Press', 'overhead-press', 'Shoulders', 'Barbell',    4),
-  ('Pull Up',        'pull-up',        'Back',      'Bodyweight', 5),
-  ('Bicep Curl',     'bicep-curl',     'Arms',      'Dumbbell',   6);
+INSERT INTO exercise_categories (name, slug, color, sort_order) VALUES
+  ('Chest',     'chest',     '#2f6bff', 1),
+  ('Legs',      'legs',      '#f4661f', 2),
+  ('Back',      'back',      '#00b37e', 3),
+  ('Shoulders', 'shoulders', '#f0a500', 4),
+  ('Arms',      'arms',      '#e0459c', 5);
+
+INSERT INTO exercises (name, slug, category_id, equipment, sort_order)
+SELECT 'Bench Press', 'bench-press', id, 'Barbell', 1 FROM exercise_categories WHERE slug = 'chest'
+UNION ALL
+SELECT 'Squat', 'squat', id, 'Barbell', 2 FROM exercise_categories WHERE slug = 'legs'
+UNION ALL
+SELECT 'Deadlift', 'deadlift', id, 'Barbell', 3 FROM exercise_categories WHERE slug = 'back'
+UNION ALL
+SELECT 'Overhead Press', 'overhead-press', id, 'Barbell', 4 FROM exercise_categories WHERE slug = 'shoulders'
+UNION ALL
+SELECT 'Pull Up', 'pull-up', id, 'Bodyweight', 5 FROM exercise_categories WHERE slug = 'back'
+UNION ALL
+SELECT 'Bicep Curl', 'bicep-curl', id, 'Dumbbell', 6 FROM exercise_categories WHERE slug = 'arms';
 
 -- ── Timetable module tables ─────────────────────────────────────────────
 -- One row is one entry on the grid. event_date decides which kind it is:

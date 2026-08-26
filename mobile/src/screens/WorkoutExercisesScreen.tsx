@@ -29,7 +29,7 @@ export default function WorkoutExercisesScreen({ navigation }: any) {
   );
 
   const filtered = rows.filter((x) =>
-    `${x.name} ${x.muscle_group} ${x.equipment}`.toLowerCase().includes(query.trim().toLowerCase())
+    `${x.name} ${x.category_name} ${x.equipment}`.toLowerCase().includes(query.trim().toLowerCase())
   );
 
   return (
@@ -90,7 +90,7 @@ export default function WorkoutExercisesScreen({ navigation }: any) {
                 {x.name}
               </Text>
               <Text style={{ color: t.inkMuted, fontSize: 11.5, marginTop: 2 }} numberOfLines={1}>
-                {[x.muscle_group, x.equipment].filter(Boolean).join(" · ") || "No details"}
+                {[x.category_name, x.equipment].filter(Boolean).join(" · ") || "No details"}
                 {!x.active && " · inactive"}
               </Text>
             </View>

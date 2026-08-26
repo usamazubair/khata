@@ -4,14 +4,12 @@ const { asyncHandler } = require("../asyncHandler");
 
 const router = express.Router();
 
-// Volume is the standard "weight moved" figure: reps × weight, summed.
 const SESSION_SELECT = `
   SELECT s.*,
-         COUNT(w.id)::int AS set_count,
-         COALESCE(SUM(w.reps * w.weight), 0)::float AS volume,
-         COALESCE(SUM(w.reps), 0)::int AS total_reps
+         COUNT(se.id)::int AS total_exercises,
+         COUNT(se.id) FILTER (WHERE se.completed)::int AS completed_exercises
   FROM workout_sessions s
-  LEFT JOIN workout_sets w ON w.session_id = s.id
+  LEFT JOIN workout_session_exercises se ON se.session_id = s.id
 `;
 
 /* ── sessions ──────────────────────────────────────────────────────────── */
@@ -45,20 +43,22 @@ router.get("/sessions", asyncHandler(async (req, res) => {
   res.json(rows);
 }));
 
-// One session plus the sets logged in it, in the order they were done.
+// One session plus its exercise checklist, in order.
 router.get("/sessions/:id", asyncHandler(async (req, res) => {
   const { rows } = await pool.query(`${SESSION_SELECT} WHERE s.id = $1 GROUP BY s.id`, [req.params.id]);
   if (!rows[0]) return res.status(404).json({ error: "Session not found." });
 
-  const { rows: sets } = await pool.query(
-    `SELECT w.*, e.name AS exercise_name, e.muscle_group
-     FROM workout_sets w
-     JOIN exercises e ON e.id = w.exercise_id
-     WHERE w.session_id = $1
-     ORDER BY w.set_order, w.id`,
+  const { rows: exercises } = await pool.query(
+    `SELECT se.*, e.name AS exercise_name, e.media_url, e.media_type,
+            ec.name AS category_name, ec.color AS category_color
+     FROM workout_session_exercises se
+     JOIN exercises e ON e.id = se.exercise_id
+     JOIN exercise_categories ec ON ec.id = e.category_id
+     WHERE se.session_id = $1
+     ORDER BY se.sort_order, se.id`,
     [req.params.id]
   );
-  res.json({ ...rows[0], sets });
+  res.json({ ...rows[0], exercises });
 }));
 
 router.post("/sessions", asyncHandler(async (req, res) => {
@@ -68,7 +68,7 @@ router.post("/sessions", asyncHandler(async (req, res) => {
      VALUES ($1, COALESCE($2, CURRENT_DATE), $3) RETURNING *`,
     [name, occurred_on || null, notes]
   );
-  res.status(201).json({ ...rows[0], set_count: 0, volume: 0, total_reps: 0, sets: [] });
+  res.status(201).json({ ...rows[0], total_exercises: 0, completed_exercises: 0, exercises: [] });
 }));
 
 router.put("/sessions/:id", asyncHandler(async (req, res) => {
@@ -91,7 +91,76 @@ router.delete("/sessions/:id", asyncHandler(async (req, res) => {
   res.status(204).end();
 }));
 
-/* ── sets ──────────────────────────────────────────────────────────────── */
+/* ── session exercise checklist ───────────────────────────────────────────
+   Adding/removing which exercises belong to a session is a web-only action
+   (mobile only ticks completion and writes notes) -- same split as every
+   other "definition vs. day-to-day" pair in this app. */
+
+router.post("/sessions/:id/exercises", asyncHandler(async (req, res) => {
+  const { exercise_id } = req.body;
+  if (!exercise_id) return res.status(400).json({ error: "exercise_id is required." });
+
+  const { rows: session } = await pool.query("SELECT 1 FROM workout_sessions WHERE id = $1", [req.params.id]);
+  if (!session.length) return res.status(404).json({ error: "Session not found." });
+
+  const { rows: last } = await pool.query(
+    "SELECT COALESCE(MAX(sort_order), -1) + 1 AS next FROM workout_session_exercises WHERE session_id = $1",
+    [req.params.id]
+  );
+  try {
+    const { rows } = await pool.query(
+      `INSERT INTO workout_session_exercises (session_id, exercise_id, sort_order)
+       VALUES ($1, $2, $3) RETURNING id`,
+      [req.params.id, exercise_id, last[0].next]
+    );
+    const { rows: full } = await pool.query(
+      `SELECT se.*, e.name AS exercise_name, e.media_url, e.media_type,
+              ec.name AS category_name, ec.color AS category_color
+       FROM workout_session_exercises se
+       JOIN exercises e ON e.id = se.exercise_id
+       JOIN exercise_categories ec ON ec.id = e.category_id
+       WHERE se.id = $1`,
+      [rows[0].id]
+    );
+    res.status(201).json(full[0]);
+  } catch (err) {
+    if (err.code === "23505") return res.status(409).json({ error: "That exercise is already on this session." });
+    if (err.code === "23503") return res.status(400).json({ error: "That exercise doesn't exist." });
+    throw err;
+  }
+}));
+
+// Toggling completion and writing notes is the one everyday interaction,
+// available on both web and mobile.
+router.put("/session-exercises/:id", asyncHandler(async (req, res) => {
+  const { completed, notes } = req.body;
+  const touchingCompleted = typeof completed === "boolean";
+  const { rows } = await pool.query(
+    `UPDATE workout_session_exercises SET
+       completed = COALESCE($1, completed),
+       -- completed_at only moves when completed actually flips, so editing
+       -- notes later doesn't rewrite when it was finished.
+       completed_at = CASE WHEN $2::boolean AND $1 IS DISTINCT FROM completed
+                           THEN (CASE WHEN $1 THEN now() ELSE NULL END)
+                           ELSE completed_at END,
+       notes = COALESCE($3, notes)
+     WHERE id = $4 RETURNING *`,
+    [completed, touchingCompleted, notes, req.params.id]
+  );
+  if (!rows[0]) return res.status(404).json({ error: "Not found." });
+  res.json(rows[0]);
+}));
+
+router.delete("/session-exercises/:id", asyncHandler(async (req, res) => {
+  const { rowCount } = await pool.query("DELETE FROM workout_session_exercises WHERE id = $1", [req.params.id]);
+  if (!rowCount) return res.status(404).json({ error: "Not found." });
+  res.status(204).end();
+}));
+
+/* ── legacy sets (reps/weight) ─────────────────────────────────────────────
+   No longer surfaced by any UI -- the exercise checklist above replaced it
+   as the primary interaction -- but left in place so nothing already logged
+   is destroyed, and so the data is still reachable if it's ever wanted. */
 
 router.post("/sessions/:id/sets", asyncHandler(async (req, res) => {
   const { exercise_id, reps, weight = 0 } = req.body;
@@ -111,12 +180,7 @@ router.post("/sessions/:id/sets", asyncHandler(async (req, res) => {
        VALUES ($1, $2, $3, $4, $5) RETURNING *`,
       [req.params.id, exercise_id, reps, weight, last[0].next]
     );
-    const { rows: full } = await pool.query(
-      `SELECT w.*, e.name AS exercise_name, e.muscle_group
-       FROM workout_sets w JOIN exercises e ON e.id = w.exercise_id WHERE w.id = $1`,
-      [rows[0].id]
-    );
-    res.status(201).json(full[0]);
+    res.status(201).json(rows[0]);
   } catch (err) {
     if (err.code === "23503") return res.status(400).json({ error: "That exercise doesn't exist." });
     throw err;
@@ -135,12 +199,7 @@ router.put("/sets/:id", asyncHandler(async (req, res) => {
     [exercise_id, reps, weight, set_order, req.params.id]
   );
   if (!rows[0]) return res.status(404).json({ error: "Set not found." });
-  const { rows: full } = await pool.query(
-    `SELECT w.*, e.name AS exercise_name, e.muscle_group
-     FROM workout_sets w JOIN exercises e ON e.id = w.exercise_id WHERE w.id = $1`,
-    [rows[0].id]
-  );
-  res.json(full[0]);
+  res.json(rows[0]);
 }));
 
 router.delete("/sets/:id", asyncHandler(async (req, res) => {
@@ -153,47 +212,29 @@ router.delete("/sets/:id", asyncHandler(async (req, res) => {
 
 // Weeks run Monday-to-Sunday, which is what date_trunc('week') gives us.
 router.get("/summary", asyncHandler(async (req, res) => {
-  const [thisWeek, lastWeek, recent, totals, topExercises] = await Promise.all([
+  const [thisWeek, recent, totals] = await Promise.all([
     pool.query(
-      `SELECT COUNT(DISTINCT s.id)::int AS sessions,
-              COALESCE(SUM(w.reps * w.weight), 0)::float AS volume,
-              COALESCE(SUM(w.reps), 0)::int AS reps
+      `SELECT s.id, s.plan_id, s.name, s.occurred_on,
+              COUNT(se.id)::int AS total_exercises,
+              COUNT(se.id) FILTER (WHERE se.completed)::int AS completed_exercises
        FROM workout_sessions s
-       LEFT JOIN workout_sets w ON w.session_id = s.id
-       WHERE date_trunc('week', s.occurred_on) = date_trunc('week', CURRENT_DATE)`
-    ),
-    pool.query(
-      `SELECT COUNT(DISTINCT s.id)::int AS sessions,
-              COALESCE(SUM(w.reps * w.weight), 0)::float AS volume
-       FROM workout_sessions s
-       LEFT JOIN workout_sets w ON w.session_id = s.id
-       WHERE date_trunc('week', s.occurred_on) = date_trunc('week', CURRENT_DATE - INTERVAL '7 days')`
+       LEFT JOIN workout_session_exercises se ON se.session_id = s.id
+       WHERE date_trunc('week', s.occurred_on) = date_trunc('week', CURRENT_DATE)
+       GROUP BY s.id ORDER BY s.occurred_on`
     ),
     pool.query(`${SESSION_SELECT} GROUP BY s.id ORDER BY s.occurred_on DESC, s.id DESC LIMIT 8`),
     pool.query(
       `SELECT COUNT(*)::int AS total_sessions,
               (SELECT COUNT(*)::int FROM exercises WHERE active) AS active_exercises,
-              (SELECT COUNT(*)::int FROM workout_sets) AS total_sets
+              (SELECT COUNT(*)::int FROM workout_plans WHERE active) AS active_plans
        FROM workout_sessions`
-    ),
-    pool.query(
-      `SELECT e.name, COALESCE(SUM(w.reps * w.weight), 0)::float AS volume, COUNT(*)::int AS sets
-       FROM workout_sets w
-       JOIN exercises e ON e.id = w.exercise_id
-       JOIN workout_sessions s ON s.id = w.session_id
-       WHERE date_trunc('week', s.occurred_on) = date_trunc('week', CURRENT_DATE)
-       GROUP BY e.name
-       ORDER BY volume DESC
-       LIMIT 6`
     ),
   ]);
 
   res.json({
-    this_week: thisWeek.rows[0],
-    last_week: lastWeek.rows[0],
-    totals: totals.rows[0],
+    this_week: thisWeek.rows,
     recent: recent.rows,
-    top_exercises: topExercises.rows,
+    totals: totals.rows[0],
   });
 }));
 

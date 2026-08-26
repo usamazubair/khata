@@ -41,7 +41,7 @@ export default function WorkoutExerciseScreen({ route }: any) {
     <ScrollView style={{ backgroundColor: t.paper }} contentContainerStyle={styles.container}>
       <Text style={[styles.title, { color: t.ink, fontFamily: fonts.display }]}>{exercise.name}</Text>
       <Text style={{ color: t.inkMuted, fontSize: 12.5, marginBottom: 18 }}>
-        {[exercise.muscle_group, exercise.equipment].filter(Boolean).join(" · ") || "No details"}
+        {[exercise.category_name, exercise.equipment].filter(Boolean).join(" · ") || "No details"}
       </Text>
 
       <ExerciseMedia exercise={exercise} onChange={load} />

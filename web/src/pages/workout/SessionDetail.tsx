@@ -1,14 +1,15 @@
 import { useCallback, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { Link, useParams } from "react-router-dom";
-import { ChevronLeft } from "lucide-react";
-import { del, get, kg, parseDate, post, put } from "@/lib/api";
-import { rowItem, staggerParent } from "@/lib/motion";
+import { Check, ChevronLeft } from "lucide-react";
+import { del, get, parseDate, post, put, seriesColor } from "@/lib/api";
+import { rowItem, spring, staggerParent } from "@/lib/motion";
 import { Navbar, Page } from "@/components/Shell";
 import { CrudLayout } from "@/components/CrudLayout";
 import {
   AnimatedNumber,
   Button,
+  Dot,
   ErrorText,
   Field,
   IconButton,
@@ -19,18 +20,18 @@ import {
   TextArea,
   TextInput,
 } from "@/components/ui";
-import type { Exercise, WorkoutSession, WorkoutSet } from "@/lib/types";
+import type { Exercise, WorkoutSession } from "@/lib/types";
 
 export default function SessionDetail() {
   const { id } = useParams();
   const [session, setSession] = useState<WorkoutSession | null>(null);
   const [exercises, setExercises] = useState<Exercise[]>([]);
-  const [editingSetId, setEditingSetId] = useState<number | null>(null);
-  const [form, setForm] = useState({ exercise_id: "", reps: "", weight: "" });
+  const [addingId, setAddingId] = useState("");
   const [name, setName] = useState("");
   const [notes, setNotes] = useState("");
   const [notesSaved, setNotesSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -42,15 +43,6 @@ export default function SessionDetail() {
       setExercises(list);
       setName(detail.name ?? "");
       setNotes(detail.notes ?? "");
-
-      // Straight sets are the common case, so carry the last set forward.
-      const last = detail.sets?.[detail.sets.length - 1];
-      setForm({
-        exercise_id: String(last?.exercise_id ?? list[0]?.id ?? ""),
-        reps: last ? String(last.reps) : "",
-        weight: last ? String(Number(last.weight)) : "",
-      });
-      setEditingSetId(null);
     } catch (e) {
       setError((e as Error).message);
     }
@@ -69,25 +61,40 @@ export default function SessionDetail() {
     }
   }
 
-  async function submit(e: React.FormEvent) {
+  async function addExercise(e: React.FormEvent) {
     e.preventDefault();
+    if (!addingId) return;
     setError(null);
-    const body = {
-      exercise_id: Number(form.exercise_id),
-      reps: Number(form.reps),
-      weight: Number(form.weight || 0),
-    };
-    if (!body.exercise_id) return;
     try {
-      if (editingSetId) await put(`/api/workouts/sets/${editingSetId}`, body);
-      else await post(`/api/workouts/sessions/${id}/sets`, body);
+      await post(`/api/workouts/sessions/${id}/exercises`, { exercise_id: Number(addingId) });
+      setAddingId("");
       await load();
     } catch (err) {
       setError((err as Error).message);
     }
   }
 
-  async function saveNotes() {
+  async function toggleComplete(seId: number, completed: boolean) {
+    setBusyId(seId);
+    try {
+      await put(`/api/workouts/session-exercises/${seId}`, { completed });
+      await load();
+    } catch (err) {
+      alert((err as Error).message);
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function saveNotes(seId: number, value: string) {
+    try {
+      await put(`/api/workouts/session-exercises/${seId}`, { notes: value });
+    } catch (err) {
+      alert((err as Error).message);
+    }
+  }
+
+  async function saveNotesField() {
     try {
       await put(`/api/workouts/sessions/${id}`, { notes });
       setNotesSaved(true);
@@ -108,12 +115,23 @@ export default function SessionDetail() {
     );
   }
 
+  const availableToAdd = exercises.filter((x) => !session?.exercises?.some((se) => se.exercise_id === x.id));
+
   return (
     <>
       <Navbar module="workout" />
       <Page>
         <PageHeader
-          eyebrow={session ? parseDate(session.occurred_on).toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "long", day: "numeric" }) : "Workout"}
+          eyebrow={
+            session
+              ? parseDate(session.occurred_on).toLocaleDateString(undefined, {
+                  weekday: "long",
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                })
+              : "Workout"
+          }
           title={session?.name || "Workout"}
         >
           <Link
@@ -132,9 +150,12 @@ export default function SessionDetail() {
               animate="show"
               className="mb-5 grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-3.5"
             >
-              <StatTile label="Sets" value={<AnimatedNumber value={session.set_count} />} />
-              <StatTile label="Reps" value={<AnimatedNumber value={session.total_reps} />} />
-              <StatTile label="Volume" value={<AnimatedNumber value={session.volume} format={(n) => kg(n)} />} />
+              <StatTile label="Exercises" value={<AnimatedNumber value={session.total_exercises} />} />
+              <StatTile
+                label="Completed"
+                accent={session.total_exercises > 0 && session.completed_exercises === session.total_exercises ? "good" : undefined}
+                value={<AnimatedNumber value={session.completed_exercises} />}
+              />
             </motion.div>
 
             <CrudLayout
@@ -142,72 +163,71 @@ export default function SessionDetail() {
                 <TableShell
                   head={
                     <>
-                      <th className="table-head">#</th>
+                      <th className="table-head" />
                       <th className="table-head">Exercise</th>
-                      <th className="table-head">Reps</th>
-                      <th className="table-head">Weight</th>
-                      <th className="table-head">Volume</th>
+                      <th className="table-head">Notes</th>
                       <th className="table-head" />
                     </>
                   }
                 >
                   <AnimatePresence mode="popLayout" initial={false}>
-                    {session.sets?.map((s: WorkoutSet, i) => (
-                      <motion.tr key={s.id} variants={rowItem} exit="exit" layout className="border-b border-rule last:border-0">
-                        <td className="table-cell font-mono text-[11px] text-muted">{i + 1}</td>
-                        <td className="table-cell">{s.exercise_name}</td>
-                        <td className="table-cell num">{s.reps}</td>
-                        <td className="table-cell num whitespace-nowrap">{kg(s.weight)}</td>
-                        <td className="table-cell num whitespace-nowrap text-muted">{kg(s.reps * Number(s.weight))}</td>
+                    {session.exercises?.map((se) => (
+                      <motion.tr key={se.id} variants={rowItem} exit="exit" layout className="border-b border-rule last:border-0">
                         <td className="table-cell">
-                          <div className="flex justify-end gap-1">
-                            <IconButton
-                              title="Log this again"
-                              onClick={() =>
-                                act(() =>
-                                  post(`/api/workouts/sessions/${id}/sets`, {
-                                    exercise_id: s.exercise_id,
-                                    reps: s.reps,
-                                    weight: Number(s.weight),
-                                  })
-                                )
-                              }
-                            >
-                              Repeat
-                            </IconButton>
-                            <IconButton
-                              onClick={() => {
-                                setEditingSetId(s.id);
-                                setForm({ exercise_id: String(s.exercise_id), reps: String(s.reps), weight: String(Number(s.weight)) });
-                              }}
-                            >
-                              Edit
-                            </IconButton>
+                          <motion.button
+                            type="button"
+                            whileTap={{ scale: 0.85 }}
+                            transition={spring}
+                            disabled={busyId === se.id}
+                            onClick={() => toggleComplete(se.id, !se.completed)}
+                            className={`flex size-[22px] cursor-pointer items-center justify-center rounded-md border-2 transition-colors ${
+                              se.completed ? "border-good bg-good text-white" : "border-rule hover:border-good"
+                            }`}
+                          >
+                            {se.completed && <Check size={13} strokeWidth={3} />}
+                          </motion.button>
+                        </td>
+                        <td className="table-cell">
+                          <span className={`flex items-center gap-2 ${se.completed ? "text-muted line-through" : ""}`}>
+                            <Dot color={seriesColor(se.category_color)} /> {se.exercise_name}
+                          </span>
+                        </td>
+                        <td className="table-cell">
+                          <input
+                            defaultValue={se.notes}
+                            onBlur={(e) => e.target.value !== se.notes && saveNotes(se.id, e.target.value)}
+                            placeholder="How did it feel?"
+                            className="w-full min-w-32 rounded-md border border-transparent bg-transparent px-1.5 py-1 text-[12.5px] outline-none transition-colors placeholder:text-muted/60 hover:border-rule focus:border-accent focus:bg-paper"
+                          />
+                        </td>
+                        <td className="table-cell">
+                          <div className="flex justify-end">
                             <IconButton
                               className="hover:text-critical"
                               onClick={() => {
-                                if (confirm("Delete this set?")) act(() => del(`/api/workouts/sets/${s.id}`));
+                                if (confirm(`Remove "${se.exercise_name}" from this session?`))
+                                  act(() => del(`/api/workouts/session-exercises/${se.id}`));
                               }}
                             >
-                              Delete
+                              Remove
                             </IconButton>
                           </div>
                         </td>
                       </motion.tr>
                     ))}
                   </AnimatePresence>
-                  {!session.sets?.length && (
+                  {!session.exercises?.length && (
                     <tr>
-                      <td colSpan={6} className="table-cell text-muted">
-                        No sets logged yet.
+                      <td colSpan={4} className="table-cell text-muted">
+                        No exercises on this session yet.
                       </td>
                     </tr>
                   )}
                 </TableShell>
               }
-              formTitle={editingSetId ? "Edit set" : "Log a set"}
+              formTitle="Add an exercise"
               form={
-                <form onSubmit={submit}>
+                <form onSubmit={addExercise}>
                   <ErrorText>{error}</ErrorText>
                   {exercises.length === 0 ? (
                     <p className="text-xs text-muted">
@@ -217,53 +237,25 @@ export default function SessionDetail() {
                       </Link>
                       .
                     </p>
+                  ) : availableToAdd.length === 0 ? (
+                    <p className="text-xs text-muted">Every active exercise is already on this session.</p>
                   ) : (
                     <>
                       <Field label="Exercise">
-                        <Select
-                          value={form.exercise_id}
-                          onChange={(e) => setForm({ ...form, exercise_id: e.target.value })}
-                          required
-                        >
-                          {exercises.map((x) => (
+                        <Select value={addingId} onChange={(e) => setAddingId(e.target.value)} required>
+                          <option value="" disabled>
+                            Choose one…
+                          </option>
+                          {availableToAdd.map((x) => (
                             <option key={x.id} value={x.id}>
                               {x.name}
                             </option>
                           ))}
                         </Select>
                       </Field>
-                      <div className="grid grid-cols-2 gap-3">
-                        <Field label="Reps">
-                          <TextInput
-                            type="number"
-                            min="0"
-                            step="1"
-                            value={form.reps}
-                            onChange={(e) => setForm({ ...form, reps: e.target.value })}
-                            required
-                          />
-                        </Field>
-                        <Field label="Weight (kg)">
-                          <TextInput
-                            type="number"
-                            min="0"
-                            step="0.5"
-                            value={form.weight}
-                            onChange={(e) => setForm({ ...form, weight: e.target.value })}
-                          />
-                        </Field>
-                      </div>
-                      <div className="mt-2 flex gap-2.5">
-                        <Button type="submit">{editingSetId ? "Save changes" : "Add set"}</Button>
-                        {editingSetId && (
-                          <Button type="button" variant="ghost" onClick={() => load()}>
-                            Cancel edit
-                          </Button>
-                        )}
-                      </div>
-                      <p className="mt-3.5 text-xs text-muted">
-                        The last set's exercise, reps and weight carry over, so straight sets are one click each.
-                      </p>
+                      <Button type="submit" className="mt-2 w-full">
+                        Add to session
+                      </Button>
                     </>
                   )}
                 </form>
@@ -281,9 +273,9 @@ export default function SessionDetail() {
                 placeholder="Name this workout"
                 className="mb-3"
               />
-              <TextArea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="How did it go?" />
+              <TextArea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="How did it go overall?" />
               <div className="mt-3 flex items-center gap-3">
-                <Button variant="ghost" onClick={saveNotes} type="button">
+                <Button variant="ghost" onClick={saveNotesField} type="button">
                   Save notes
                 </Button>
                 <AnimatePresence>

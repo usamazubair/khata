@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
+import { Link } from "react-router-dom";
 import { ImageOff } from "lucide-react";
-import { del, get, post, put } from "@/lib/api";
+import { del, get, post, put, seriesColor } from "@/lib/api";
 import { rowItem } from "@/lib/motion";
 import { Navbar, Page } from "@/components/Shell";
 import { CrudLayout } from "@/components/CrudLayout";
@@ -9,30 +10,41 @@ import {
   ActiveField,
   ActiveToggle,
   Button,
+  Dot,
   ErrorText,
   Field,
+  FilterChips,
   IconButton,
   PageHeader,
   SearchInput,
+  Select,
   TableShell,
   TextArea,
   TextInput,
   cx,
 } from "@/components/ui";
-import type { Exercise } from "@/lib/types";
+import type { Exercise, ExerciseCategory } from "@/lib/types";
 import { MediaUpload, type MediaValue } from "@/components/MediaUpload";
 
 export default function Exercises() {
   const [rows, setRows] = useState<Exercise[]>([]);
+  const [cats, setCats] = useState<ExerciseCategory[]>([]);
   const [q, setQ] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("all");
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [form, setForm] = useState({ name: "", muscle_group: "", equipment: "", notes: "", active: true });
+  const [form, setForm] = useState({ name: "", category_id: "", equipment: "", notes: "", active: true });
   const [media, setMedia] = useState<MediaValue>({ media_url: null, media_public_id: null, media_type: null });
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
-      setRows(await get<Exercise[]>("/api/exercises"));
+      const [exercises, categories] = await Promise.all([
+        get<Exercise[]>("/api/exercises"),
+        get<ExerciseCategory[]>("/api/exercise-categories?active=true"),
+      ]);
+      setRows(exercises);
+      setCats(categories);
+      setForm((f) => ({ ...f, category_id: f.category_id || String(categories[0]?.id ?? "") }));
     } catch (e) {
       setError((e as Error).message);
     }
@@ -44,7 +56,7 @@ export default function Exercises() {
 
   function reset() {
     setEditingId(null);
-    setForm({ name: "", muscle_group: "", equipment: "", notes: "", active: true });
+    setForm({ name: "", category_id: String(cats[0]?.id ?? ""), equipment: "", notes: "", active: true });
     setMedia({ media_url: null, media_public_id: null, media_type: null });
     setError(null);
   }
@@ -54,13 +66,13 @@ export default function Exercises() {
     setError(null);
     const body = {
       name: form.name.trim(),
-      muscle_group: form.muscle_group.trim(),
+      category_id: Number(form.category_id),
       equipment: form.equipment.trim(),
       notes: form.notes.trim(),
       active: form.active,
       ...media,
     };
-    if (!body.name) return;
+    if (!body.name || !body.category_id) return;
     try {
       if (editingId) await put(`/api/exercises/${editingId}`, body);
       else await post("/api/exercises", body);
@@ -80,9 +92,18 @@ export default function Exercises() {
     }
   }
 
-  const filtered = rows.filter((x) =>
-    `${x.name} ${x.muscle_group} ${x.equipment}`.toLowerCase().includes(q.trim().toLowerCase())
+  const searched = rows.filter((x) =>
+    `${x.name} ${x.category_name} ${x.equipment}`.toLowerCase().includes(q.trim().toLowerCase())
   );
+  const filtered = searched.filter((x) => categoryFilter === "all" || x.category_id === Number(categoryFilter));
+  const chips = [
+    { value: "all", label: "All", count: searched.length },
+    ...cats.map((c) => ({
+      value: String(c.id),
+      label: c.name,
+      count: searched.filter((x) => x.category_id === c.id).length,
+    })),
+  ];
 
   return (
     <>
@@ -90,18 +111,23 @@ export default function Exercises() {
       <Page>
         <PageHeader eyebrow="Workout" title="Exercises" />
         <p className="mb-4 text-xs text-muted">
-          Your exercise library. Deactivated exercises stay in past sessions but stop appearing when you log new sets.
+          Your exercise library. Deactivated exercises stay in past sessions but stop being offered for new ones.
         </p>
 
         <CrudLayout
-          toolbar={<SearchInput value={q} onChange={setQ} placeholder="Search exercises…" />}
+          toolbar={
+            <div className="w-full space-y-3">
+              <SearchInput value={q} onChange={setQ} placeholder="Search exercises…" />
+              <FilterChips options={chips} value={categoryFilter} onChange={setCategoryFilter} />
+            </div>
+          }
           table={
             <TableShell
               head={
                 <>
                   <th className="table-head">Demo</th>
                   <th className="table-head">Name</th>
-                  <th className="table-head">Muscle group</th>
+                  <th className="table-head">Category</th>
                   <th className="table-head">Equipment</th>
                   <th className="table-head">Status</th>
                   <th className="table-head" />
@@ -131,7 +157,11 @@ export default function Exercises() {
                       )}
                     </td>
                     <td className="table-cell">{x.name}</td>
-                    <td className="table-cell text-muted">{x.muscle_group || "—"}</td>
+                    <td className="table-cell text-muted">
+                      <span className="flex items-center gap-2">
+                        <Dot color={seriesColor(x.category_color)} /> {x.category_name}
+                      </span>
+                    </td>
                     <td className="table-cell text-muted">{x.equipment || "—"}</td>
                     <td className="table-cell">
                       <ActiveToggle active={x.active} onClick={() => act(() => put(`/api/exercises/${x.id}`, { active: !x.active }))} />
@@ -143,7 +173,7 @@ export default function Exercises() {
                             setEditingId(x.id);
                             setForm({
                               name: x.name,
-                              muscle_group: x.muscle_group ?? "",
+                              category_id: String(x.category_id),
                               equipment: x.equipment ?? "",
                               notes: x.notes ?? "",
                               active: x.active,
@@ -160,7 +190,7 @@ export default function Exercises() {
                         <IconButton
                           className="hover:text-critical"
                           onClick={() => {
-                            if (confirm(`Delete "${x.name}"? This only works if no sets reference it.`))
+                            if (confirm(`Delete "${x.name}"? This only works if it isn't used by a plan or session.`))
                               act(() => del(`/api/exercises/${x.id}`));
                           }}
                         >
@@ -174,7 +204,7 @@ export default function Exercises() {
               {filtered.length === 0 && (
                 <tr>
                   <td colSpan={6} className="table-cell text-muted">
-                    {rows.length ? "Nothing matches your search." : "No exercises yet."}
+                    {rows.length ? "Nothing matches those filters." : "No exercises yet."}
                   </td>
                 </tr>
               )}
@@ -184,6 +214,15 @@ export default function Exercises() {
           form={
             <form onSubmit={submit}>
               <ErrorText>{error}</ErrorText>
+              {cats.length === 0 && (
+                <p className="mb-3 text-xs text-muted">
+                  No categories yet —{" "}
+                  <Link to="/workout/categories" className="text-accent underline">
+                    add one first
+                  </Link>
+                  .
+                </p>
+              )}
               <Field label="Name">
                 <TextInput
                   value={form.name}
@@ -193,12 +232,14 @@ export default function Exercises() {
                 />
               </Field>
               <div className="grid grid-cols-2 gap-3">
-                <Field label="Muscle group">
-                  <TextInput
-                    value={form.muscle_group}
-                    onChange={(e) => setForm({ ...form, muscle_group: e.target.value })}
-                    placeholder="Chest"
-                  />
+                <Field label="Category">
+                  <Select value={form.category_id} onChange={(e) => setForm({ ...form, category_id: e.target.value })} required>
+                    {cats.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </Select>
                 </Field>
                 <Field label="Equipment">
                   <TextInput
@@ -221,7 +262,7 @@ export default function Exercises() {
               <ActiveField
                 active={form.active}
                 onChange={(v) => setForm({ ...form, active: v })}
-                hint="Inactive exercises stay in past sessions but stop appearing when you log new sets."
+                hint="Inactive exercises stay in past sessions but stop being offered for new ones."
               />
               <div className="mt-4 flex gap-2.5">
                 <Button type="submit">Save</Button>

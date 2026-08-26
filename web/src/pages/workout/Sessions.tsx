@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { Link, useNavigate } from "react-router-dom";
-import { del, fullDate, get, kg, post } from "@/lib/api";
+import { RefreshCw } from "lucide-react";
+import { del, fullDate, get, post } from "@/lib/api";
 import { rowItem } from "@/lib/motion";
 import { Navbar, Page } from "@/components/Shell";
 import { CrudLayout } from "@/components/CrudLayout";
@@ -11,12 +12,31 @@ import {
   Field,
   IconButton,
   PageHeader,
+  Pill,
   SearchInput,
   TableShell,
   TextArea,
   TextInput,
 } from "@/components/ui";
 import type { WorkoutSession } from "@/lib/types";
+
+/** The Monday of the week `d` falls in, as YYYY-MM-DD. */
+function mondayOf(d: Date) {
+  const day = d.getDay();
+  const monday = new Date(d);
+  monday.setDate(d.getDate() - ((day + 6) % 7));
+  return monday.toISOString().slice(0, 10);
+}
+
+function CompletionPill({ s }: { s: WorkoutSession }) {
+  if (s.total_exercises === 0) return <Pill>No exercises</Pill>;
+  const done = s.completed_exercises === s.total_exercises;
+  return (
+    <Pill tone={done ? "good" : s.completed_exercises > 0 ? "warn" : "neutral"}>
+      {s.completed_exercises}/{s.total_exercises} done
+    </Pill>
+  );
+}
 
 export default function Sessions() {
   const navigate = useNavigate();
@@ -26,6 +46,7 @@ export default function Sessions() {
   const [to, setTo] = useState("");
   const [form, setForm] = useState({ name: "", occurred_on: "", notes: "" });
   const [error, setError] = useState<string | null>(null);
+  const [generating, setGenerating] = useState(false);
 
   const load = useCallback(async () => {
     const params = new URLSearchParams();
@@ -44,7 +65,20 @@ export default function Sessions() {
     return () => clearTimeout(t);
   }, [load]);
 
-  // Creating a session drops you straight into logging sets.
+  async function generateThisWeek() {
+    setGenerating(true);
+    setError(null);
+    try {
+      await post("/api/workout-plans/generate", { week_start: mondayOf(new Date()) });
+      await load();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  // Creating a session drops you straight into adding exercises to it.
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -61,7 +95,7 @@ export default function Sessions() {
   }
 
   async function remove(s: WorkoutSession) {
-    if (!confirm(`Delete "${s.name || "Workout"}" and every set logged in it?`)) return;
+    if (!confirm(`Delete "${s.name || "Workout"}"?`)) return;
     try {
       await del(`/api/workouts/sessions/${s.id}`);
       await load();
@@ -74,7 +108,13 @@ export default function Sessions() {
     <>
       <Navbar module="workout" />
       <Page>
-        <PageHeader eyebrow="Workout" title="Sessions" />
+        <PageHeader eyebrow="Workout" title="Sessions">
+          <Button onClick={generateThisWeek} disabled={generating}>
+            <span className="flex items-center gap-1.5">
+              <RefreshCw size={14} className={generating ? "animate-spin" : ""} /> Generate this week
+            </span>
+          </Button>
+        </PageHeader>
 
         <CrudLayout
           toolbar={
@@ -101,9 +141,7 @@ export default function Sessions() {
                 <>
                   <th className="table-head">Date</th>
                   <th className="table-head">Session</th>
-                  <th className="table-head">Sets</th>
-                  <th className="table-head">Reps</th>
-                  <th className="table-head">Volume</th>
+                  <th className="table-head">Progress</th>
                   <th className="table-head" />
                 </>
               }
@@ -117,9 +155,9 @@ export default function Sessions() {
                         {s.name || "Workout"}
                       </Link>
                     </td>
-                    <td className="table-cell text-muted">{s.set_count}</td>
-                    <td className="table-cell text-muted">{s.total_reps}</td>
-                    <td className="table-cell num whitespace-nowrap">{kg(s.volume)}</td>
+                    <td className="table-cell">
+                      <CompletionPill s={s} />
+                    </td>
                     <td className="table-cell">
                       <div className="flex justify-end gap-1">
                         <Link
@@ -138,7 +176,7 @@ export default function Sessions() {
               </AnimatePresence>
               {rows.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="table-cell text-muted">
+                  <td colSpan={4} className="table-cell text-muted">
                     No sessions match these filters.
                   </td>
                 </tr>
@@ -159,8 +197,12 @@ export default function Sessions() {
                 <TextArea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="How it went" />
               </Field>
               <Button type="submit" className="mt-2 w-full">
-                Create &amp; log sets
+                Create &amp; add exercises
               </Button>
+              <p className="mt-3 text-xs text-muted">
+                Most weeks, "Generate this week" above does this for you from your plans — start one manually only
+                for something extra.
+              </p>
             </form>
           }
         />

@@ -134,21 +134,16 @@ export const api = {
       request("/api/exercises/upload-signature", { method: "POST", body: JSON.stringify({ resource_type }) }),
   },
 
+  // Which exercises belong to a session (and to a plan) is a web-only
+  // decision — the phone's only write here is ticking one complete and
+  // writing a note, the same everyday interaction web gets too.
   workouts: {
     summary: () => request("/api/workouts/summary"),
     sessions: (params: Record<string, string> = {}) =>
       request(`/api/workouts/sessions?${new URLSearchParams(params).toString()}`),
     session: (id: number) => request(`/api/workouts/sessions/${id}`),
-    createSession: (body: object) =>
-      request("/api/workouts/sessions", { method: "POST", body: JSON.stringify(body) }),
-    updateSession: (id: number, body: object) =>
-      request(`/api/workouts/sessions/${id}`, { method: "PUT", body: JSON.stringify(body) }),
-    removeSession: (id: number) => request(`/api/workouts/sessions/${id}`, { method: "DELETE" }),
-    addSet: (sessionId: number, body: object) =>
-      request(`/api/workouts/sessions/${sessionId}/sets`, { method: "POST", body: JSON.stringify(body) }),
-    updateSet: (id: number, body: object) =>
-      request(`/api/workouts/sets/${id}`, { method: "PUT", body: JSON.stringify(body) }),
-    removeSet: (id: number) => request(`/api/workouts/sets/${id}`, { method: "DELETE" }),
+    updateSessionExercise: (id: number, body: object) =>
+      request(`/api/workouts/session-exercises/${id}`, { method: "PUT", body: JSON.stringify(body) }),
   },
 
   summary: (month: string) => request(`/api/summary?month=${month}`),

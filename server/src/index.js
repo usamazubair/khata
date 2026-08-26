@@ -18,6 +18,8 @@ const summary = require("./routes/summary");
 const timetable = require("./routes/timetable");
 const todo = require("./routes/todo");
 const exercises = require("./routes/exercises");
+const exerciseCategories = require("./routes/exerciseCategories");
+const workoutPlans = require("./routes/workoutPlans");
 const workouts = require("./routes/workouts");
 
 const app = express();
@@ -45,6 +47,8 @@ app.use("/api/summary", transactionsModule, summary);
 
 const workoutModule = requireModule("workout");
 app.use("/api/exercises", workoutModule, exercises);
+app.use("/api/exercise-categories", workoutModule, exerciseCategories);
+app.use("/api/workout-plans", workoutModule, workoutPlans);
 app.use("/api/workouts", workoutModule, workouts);
 
 app.use("/api/timetable", requireModule("timetable"), timetable);
