@@ -70,7 +70,9 @@ export default function ManualEntryScreen({ route, navigation }: any) {
         occurred_on: toISODate(date),
       });
       reset();
-      navigation.navigate("Home");
+      // "Home" is a tab nested inside the "Transactions" stack screen, not a
+      // top-level screen -- has to be addressed through its parent.
+      navigation.navigate("Transactions", { screen: "Home" });
     } catch (err: any) {
       Alert.alert("Couldn't save", err.message || "Something went wrong.");
     } finally {

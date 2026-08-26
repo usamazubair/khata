@@ -51,7 +51,9 @@ export default function FixedDueScreen({ navigation }: any) {
       await api.fixedExpenses.confirm(selected.id);
       setSelectedId(null);
       await load();
-      navigation.navigate("Home");
+      // "Home" is a tab nested inside the "Transactions" stack screen, not a
+      // top-level screen -- has to be addressed through its parent.
+      navigation.navigate("Transactions", { screen: "Home" });
     } catch (err: any) {
       Alert.alert("Couldn't log that", err.message || "Something went wrong.");
     } finally {
