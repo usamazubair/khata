@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import {
-  View, Text, TextInput, Pressable, ScrollView, StyleSheet, Alert, RefreshControl, KeyboardAvoidingView, Platform,
+  View, Text, TextInput, Pressable, ScrollView, StyleSheet, Alert, RefreshControl,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme, fonts } from "../theme";
 import { api, parseDate } from "../api";
 import { TodoItem } from "../types";
+import { useKeyboardOffset } from "../lib/useKeyboardOffset";
 
 /** How a due date reads relative to today. Compared as calendar days so
  *  "Today" doesn't flip at 00:00 UTC. */
@@ -32,6 +33,7 @@ export default function TodoListScreen({ route, navigation }: any) {
   const [showDone, setShowDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const keyboardOffset = useKeyboardOffset();
 
   const load = useCallback(async () => {
     try {
@@ -156,13 +158,12 @@ export default function TodoListScreen({ route, navigation }: any) {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: t.paper }}
-      // Android's default resize behavior stopped reliably keeping this
-      // bottom-pinned composer above the keyboard once edge-to-edge display
-      // became the default (Expo SDK 53+) -- "height" is the fix.
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-    >
+    // Tracking the keyboard's own height and padding by that amount, rather
+    // than leaning on KeyboardAvoidingView, since Android's native
+    // resize/pan/height behaviors have proven unreliable across OEM skins
+    // (Samsung's One UI in particular) since edge-to-edge display became the
+    // Android default -- this works the same regardless of device or OS quirk.
+    <View style={{ flex: 1, backgroundColor: t.paper, paddingBottom: keyboardOffset }}>
       <ScrollView
         contentContainerStyle={styles.container}
         keyboardShouldPersistTaps="handled"
@@ -217,7 +218,7 @@ export default function TodoListScreen({ route, navigation }: any) {
           <Ionicons name="add" size={22} color={t.accentInk} />
         </Pressable>
       </View>
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 

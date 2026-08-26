@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { View, Text, TextInput, ScrollView, Pressable, StyleSheet, RefreshControl, Modal, Alert, KeyboardAvoidingView, Platform } from "react-native";
+import { View, Text, TextInput, ScrollView, Pressable, StyleSheet, RefreshControl, Modal, Alert } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme, fonts } from "../theme";
@@ -7,6 +7,7 @@ import { api } from "../api";
 import { TodoList } from "../types";
 import { EVENT_COLORS } from "../lib/schedule";
 import ProgressBar from "../components/ProgressBar";
+import { useKeyboardOffset } from "../lib/useKeyboardOffset";
 
 const LIST_ICONS = ["🗂️", "🏠", "🚗", "🛒", "💼", "🎓", "🧰", "✈️", "🎁", "💊", "📚", "🐾"];
 
@@ -23,6 +24,7 @@ export default function TodoListsScreen({ navigation }: any) {
   const [icon, setIcon] = useState(LIST_ICONS[0]);
   const [color, setColor] = useState(EVENT_COLORS[0]);
   const [saving, setSaving] = useState(false);
+  const keyboardOffset = useKeyboardOffset();
 
   const load = useCallback(async () => {
     try {
@@ -128,13 +130,12 @@ export default function TodoListsScreen({ navigation }: any) {
       </ScrollView>
 
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
-        <KeyboardAvoidingView
-          // Android's default resize behavior stopped reliably keeping this
-          // bottom sheet's input above the keyboard once edge-to-edge display
-          // became the default (Expo SDK 53+) -- "height" is the fix.
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          style={styles.backdrop}
-        >
+        {/* Tracking the keyboard's own height and padding by that amount,
+            rather than leaning on KeyboardAvoidingView, since Android's
+            native resize/pan/height behaviors have proven unreliable across
+            OEM skins (Samsung's One UI in particular). The backdrop is
+            flex-end, so this padding pushes the sheet up above the keyboard. */}
+        <View style={[styles.backdrop, { paddingBottom: keyboardOffset }]}>
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setOpen(false)} />
           <View style={[styles.sheet, { backgroundColor: t.page }]}>
             <Text style={[styles.sheetTitle, { color: t.ink, fontFamily: fonts.display }]}>New list</Text>
@@ -191,7 +192,7 @@ export default function TodoListsScreen({ navigation }: any) {
               </Pressable>
             </View>
           </View>
-        </KeyboardAvoidingView>
+        </View>
       </Modal>
     </View>
   );
