@@ -5,6 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme, fonts } from "../theme";
 import { api } from "../api";
 import type { Exercise } from "../types";
+import Dot from "../components/Dot";
 
 export default function WorkoutExercisesScreen({ navigation }: any) {
   const t = useTheme();
@@ -68,35 +69,41 @@ export default function WorkoutExercisesScreen({ navigation }: any) {
           </Text>
         )}
 
-        {filtered.map((x) => (
-          <Pressable
-            key={x.id}
-            onPress={() => navigation.navigate("WorkoutExercise", { exerciseId: x.id, name: x.name })}
-            style={[styles.card, { backgroundColor: t.page2, opacity: x.active ? 1 : 0.55 }]}
-          >
-            {x.media_url && x.media_type === "image" ? (
-              <Image source={{ uri: x.media_url }} style={styles.thumb} resizeMode="cover" />
-            ) : (
-              <View style={[styles.thumb, styles.thumbEmpty, { borderColor: t.rule }]}>
-                <Ionicons
-                  name={x.media_type === "video" ? "videocam-outline" : "barbell-outline"}
-                  size={18}
-                  color={t.inkMuted}
-                />
+        {filtered.map((x) => {
+          const tint = t.categoryColor(x.category_color);
+          return (
+            <Pressable
+              key={x.id}
+              onPress={() => navigation.navigate("WorkoutExercise", { exerciseId: x.id, name: x.name })}
+              style={[styles.card, { backgroundColor: t.page2, borderLeftColor: tint, opacity: x.active ? 1 : 0.55 }]}
+            >
+              {x.media_url && x.media_type === "image" ? (
+                <Image source={{ uri: x.media_url }} style={styles.thumb} resizeMode="cover" />
+              ) : (
+                <View style={[styles.thumb, styles.thumbEmpty, { borderColor: tint }]}>
+                  <Ionicons
+                    name={x.media_type === "video" ? "videocam-outline" : "barbell-outline"}
+                    size={18}
+                    color={tint}
+                  />
+                </View>
+              )}
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: t.ink, fontSize: 14, fontWeight: "600" }} numberOfLines={1}>
+                  {x.name}
+                </Text>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginTop: 3 }}>
+                  <Dot color={tint} size={7} />
+                  <Text style={{ color: t.inkMuted, fontSize: 11.5 }} numberOfLines={1}>
+                    {[x.category_name, x.equipment].filter(Boolean).join(" · ") || "No details"}
+                    {!x.active && " · inactive"}
+                  </Text>
+                </View>
               </View>
-            )}
-            <View style={{ flex: 1 }}>
-              <Text style={{ color: t.ink, fontSize: 14, fontWeight: "600" }} numberOfLines={1}>
-                {x.name}
-              </Text>
-              <Text style={{ color: t.inkMuted, fontSize: 11.5, marginTop: 2 }} numberOfLines={1}>
-                {[x.category_name, x.equipment].filter(Boolean).join(" · ") || "No details"}
-                {!x.active && " · inactive"}
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={15} color={t.inkMuted} />
-          </Pressable>
-        ))}
+              <Ionicons name="chevron-forward" size={15} color={t.inkMuted} />
+            </Pressable>
+          );
+        })}
       </ScrollView>
     </View>
   );
@@ -115,7 +122,7 @@ const styles = StyleSheet.create({
   },
   searchInput: { flex: 1, fontSize: 13, padding: 0 },
   list: { padding: 18, paddingTop: 8, gap: 10 },
-  card: { flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 12, padding: 12 },
+  card: { flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 12, borderLeftWidth: 3, padding: 12 },
   thumb: { width: 52, height: 52, borderRadius: 8 },
-  thumbEmpty: { borderWidth: 1, borderStyle: "dashed", alignItems: "center", justifyContent: "center" },
+  thumbEmpty: { borderWidth: 1.5, alignItems: "center", justifyContent: "center" },
 });
