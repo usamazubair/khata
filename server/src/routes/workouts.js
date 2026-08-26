@@ -1,6 +1,7 @@
 const express = require("express");
 const { pool } = require("../db");
 const { asyncHandler } = require("../asyncHandler");
+const { generateWorkoutWeek, mondayOf } = require("../lib/workoutGenerate");
 
 const router = express.Router();
 
@@ -211,7 +212,11 @@ router.delete("/sets/:id", asyncHandler(async (req, res) => {
 /* ── overview ──────────────────────────────────────────────────────────── */
 
 // Weeks run Monday-to-Sunday, which is what date_trunc('week') gives us.
+// This week's active plans are generated into real sessions right here --
+// there's no separate "generate" step for anyone to remember to click.
 router.get("/summary", asyncHandler(async (req, res) => {
+  await generateWorkoutWeek(mondayOf(new Date()));
+
   const [thisWeek, recent, totals] = await Promise.all([
     pool.query(
       `SELECT s.id, s.plan_id, s.name, s.occurred_on,

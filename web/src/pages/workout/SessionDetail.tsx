@@ -135,10 +135,10 @@ export default function SessionDetail() {
           title={session?.name || "Workout"}
         >
           <Link
-            to="/workout/sessions"
+            to="/workout"
             className="flex items-center gap-1 rounded-lg border border-rule px-3.5 py-2 text-[13px] text-muted transition-colors hover:text-ink"
           >
-            <ChevronLeft size={14} /> All sessions
+            <ChevronLeft size={14} /> Overview
           </Link>
         </PageHeader>
 

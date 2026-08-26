@@ -112,7 +112,7 @@ export default function WorkoutHomeScreen({ navigation }: any) {
           <View style={[styles.card, { backgroundColor: t.page2 }]}>
             {data.this_week.length === 0 && (
               <Text style={{ color: t.inkMuted, fontSize: 13 }}>
-                Nothing scheduled — plans and generating a week happen on the web dashboard.
+                Nothing scheduled — set up plans on the web dashboard and this week fills in automatically.
               </Text>
             )}
             {data.this_week.map((s, i) => (

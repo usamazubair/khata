@@ -12,7 +12,6 @@ import TransactionsScreen from "./screens/TransactionsScreen";
 import InsightsScreen from "./screens/InsightsScreen";
 import SettingsScreen from "./screens/SettingsScreen";
 import WorkoutHomeScreen from "./screens/WorkoutHomeScreen";
-import WorkoutSessionsScreen from "./screens/WorkoutSessionsScreen";
 import WorkoutSessionScreen from "./screens/WorkoutSessionScreen";
 import WorkoutExercisesScreen from "./screens/WorkoutExercisesScreen";
 import WorkoutExerciseScreen from "./screens/WorkoutExerciseScreen";
@@ -46,7 +45,6 @@ const TODO_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
 
 const WORKOUT_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   "This week": "flame-outline",
-  Sessions: "barbell-outline",
   Exercises: "list-outline",
   Settings: "settings-outline",
 };
@@ -86,7 +84,6 @@ function WorkoutTabs() {
   return (
     <Tab.Navigator screenOptions={tabScreenOptions(t, WORKOUT_ICONS)}>
       <Tab.Screen name="This week" component={WorkoutHomeScreen} />
-      <Tab.Screen name="Sessions" component={WorkoutSessionsScreen} />
       <Tab.Screen name="Exercises" component={WorkoutExercisesScreen} />
       <Tab.Screen name="Settings" component={SettingsScreen} />
     </Tab.Navigator>

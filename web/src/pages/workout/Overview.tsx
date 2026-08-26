@@ -1,19 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { motion } from "motion/react";
 import { Link } from "react-router-dom";
-import { RefreshCw } from "lucide-react";
-import { fullDate, get, post } from "@/lib/api";
+import { fullDate, get } from "@/lib/api";
 import { riseItem, staggerParent } from "@/lib/motion";
 import { Navbar, Page } from "@/components/Shell";
-import { AnimatedNumber, Button, Card, EmptyState, PageHeader, Pill, SectionLabel, StatTile } from "@/components/ui";
+import { AnimatedNumber, Card, EmptyState, PageHeader, Pill, SectionLabel, StatTile } from "@/components/ui";
 import type { WorkoutSummary } from "@/lib/types";
-
-function mondayOf(d: Date) {
-  const day = d.getDay();
-  const monday = new Date(d);
-  monday.setDate(d.getDate() - ((day + 6) % 7));
-  return monday.toISOString().slice(0, 10);
-}
 
 function CompletionPill({ total, completed }: { total: number; completed: number }) {
   if (total === 0) return <Pill>No exercises</Pill>;
@@ -24,10 +16,11 @@ function CompletionPill({ total, completed }: { total: number; completed: number
 export default function WorkoutOverview() {
   const [data, setData] = useState<WorkoutSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [generating, setGenerating] = useState(false);
 
   const load = useCallback(async () => {
     try {
+      // Loading the summary is what generates this week's sessions from the
+      // active plans, server-side -- nothing to trigger by hand.
       setData(await get<WorkoutSummary>("/api/workouts/summary"));
       setError(null);
     } catch (e) {
@@ -39,18 +32,6 @@ export default function WorkoutOverview() {
     load();
   }, [load]);
 
-  async function generateThisWeek() {
-    setGenerating(true);
-    try {
-      await post("/api/workout-plans/generate", { week_start: mondayOf(new Date()) });
-      await load();
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setGenerating(false);
-    }
-  }
-
   const weekTotal = data?.this_week.reduce((n, s) => n + s.total_exercises, 0) ?? 0;
   const weekDone = data?.this_week.reduce((n, s) => n + s.completed_exercises, 0) ?? 0;
   const fullyDone = data?.this_week.filter((s) => s.total_exercises > 0 && s.completed_exercises === s.total_exercises).length ?? 0;
@@ -59,13 +40,7 @@ export default function WorkoutOverview() {
     <>
       <Navbar module="workout" />
       <Page>
-        <PageHeader eyebrow="Workout" title="Overview">
-          <Button onClick={generateThisWeek} disabled={generating}>
-            <span className="flex items-center gap-1.5">
-              <RefreshCw size={14} className={generating ? "animate-spin" : ""} /> Generate this week
-            </span>
-          </Button>
-        </PageHeader>
+        <PageHeader eyebrow="Workout" title="Overview" />
 
         {error && <EmptyState>{error}</EmptyState>}
 
@@ -100,7 +75,7 @@ export default function WorkoutOverview() {
                     <Link to="/workout/plans" className="text-accent underline">
                       set up a plan
                     </Link>{" "}
-                    or generate this week above.
+                    and this week fills in automatically.
                   </EmptyState>
                 ) : (
                   <motion.div variants={staggerParent} className="mt-1">

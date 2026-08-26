@@ -10,7 +10,6 @@ import Categories from "@/pages/transactions/Categories";
 import Fixed from "@/pages/transactions/Fixed";
 import GoalBudget from "@/pages/transactions/GoalBudget";
 import WorkoutOverview from "@/pages/workout/Overview";
-import Sessions from "@/pages/workout/Sessions";
 import SessionDetail from "@/pages/workout/SessionDetail";
 import Exercises from "@/pages/workout/Exercises";
 import ExerciseCategories from "@/pages/workout/Categories";
@@ -42,7 +41,6 @@ function AppRoutes() {
         <Route path="/transactions/budgets" element={<GoalBudget kind="budget" />} />
 
         <Route path="/workout" element={<WorkoutOverview />} />
-        <Route path="/workout/sessions" element={<Sessions />} />
         <Route path="/workout/sessions/:id" element={<SessionDetail />} />
         <Route path="/workout/exercises" element={<Exercises />} />
         <Route path="/workout/categories" element={<ExerciseCategories />} />
