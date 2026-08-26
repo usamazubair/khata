@@ -30,22 +30,37 @@ function weekdayOf(isoDate) {
 }
 
 router.get("/", asyncHandler(async (req, res) => {
-  const { rows } = await pool.query(`${PLAN_SELECT} GROUP BY p.id ORDER BY p.event_date NULLS FIRST, p.day_of_week`);
+  const { rows } = await pool.query(
+    `${PLAN_SELECT} GROUP BY p.id ORDER BY p.event_date NULLS FIRST, p.day_of_week NULLS LAST, p.sort_order, p.id`
+  );
   res.json(rows);
 }));
 
+// day_of_week null and event_date null together mean "rotating cycle" --
+// no fixed day, ordered by sort_order and assigned across calendar days by
+// lib/workoutGenerate.js. Only weekday/date validate; cycle mode needs
+// neither.
+function validateDow(dow) {
+  return dow === null || (Number.isInteger(dow) && dow >= 0 && dow <= 6);
+}
+
 router.post("/", asyncHandler(async (req, res) => {
-  const { name, day_of_week, event_date = null, active = true } = req.body;
+  const { name, day_of_week = null, event_date = null, active = true } = req.body;
   if (!name || !String(name).trim()) return res.status(400).json({ error: "A name is required." });
 
   const dow = event_date ? weekdayOf(event_date) : day_of_week;
-  if (!Number.isInteger(dow) || dow < 0 || dow > 6) {
-    return res.status(400).json({ error: "Pick a weekday, or a date for a one-off." });
-  }
+  if (!validateDow(dow)) return res.status(400).json({ error: "That's not a valid weekday." });
 
   try {
+    // A cycle plan (no weekday, no date) is ordered by sort_order -- append
+    // it to the end of the rotation instead of defaulting everything to 0.
+    const sortOrderExpr =
+      dow === null && !event_date
+        ? `(SELECT COALESCE(MAX(sort_order), -1) + 1 FROM workout_plans WHERE day_of_week IS NULL AND event_date IS NULL)`
+        : `0`;
     const { rows } = await pool.query(
-      `INSERT INTO workout_plans (name, day_of_week, event_date, active) VALUES ($1, $2, $3, $4) RETURNING id`,
+      `INSERT INTO workout_plans (name, day_of_week, event_date, active, sort_order)
+       VALUES ($1, $2, $3, $4, ${sortOrderExpr}) RETURNING id`,
       [String(name).trim(), dow, event_date, active]
     );
     const { rows: full } = await pool.query(`${PLAN_SELECT} WHERE p.id = $1 GROUP BY p.id`, [rows[0].id]);
@@ -60,13 +75,20 @@ router.put("/:id", asyncHandler(async (req, res) => {
   const { rows: before } = await pool.query("SELECT * FROM workout_plans WHERE id = $1", [req.params.id]);
   if (!before[0]) return res.status(404).json({ error: "Plan not found." });
 
-  const { name, day_of_week, active, sort_order } = req.body;
-  // event_date can legitimately be set to null (switching a one-off back to
-  // repeating), so presence in the body decides whether we touch it at all —
-  // COALESCE can't tell "clear it" from "leave it alone".
+  const { name, active, sort_order } = req.body;
+  // event_date and day_of_week can both legitimately be set back to null
+  // (switching to a one-off, or into a cycle with no fixed day), so
+  // presence in the body decides whether we touch each at all — COALESCE
+  // and ?? can't tell "clear it" from "leave it alone".
   const touchingDate = "event_date" in req.body;
+  const touchingDow = "day_of_week" in req.body;
   const event_date = touchingDate ? req.body.event_date : before[0].event_date;
-  const dow = event_date ? weekdayOf(event_date) : (day_of_week ?? before[0].day_of_week);
+
+  let dow;
+  if (event_date) dow = weekdayOf(event_date);
+  else if (touchingDow) dow = req.body.day_of_week;
+  else dow = before[0].day_of_week;
+  if (!validateDow(dow)) return res.status(400).json({ error: "That's not a valid weekday." });
 
   try {
     const { rows } = await pool.query(

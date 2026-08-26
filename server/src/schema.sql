@@ -167,15 +167,17 @@ CREATE TABLE exercises (
 );
 
 -- day_of_week follows Postgres EXTRACT(DOW), same convention as
--- timetable_events: 0 = Sunday ... 6 = Saturday. One plan per weekday.
--- event_date NULL = repeats every week on day_of_week; a date = a one-off
--- that applies only to the week containing it. day_of_week is always set
--- (derived from event_date for one-offs, same convention as
--- timetable_events) so sorting never has to branch on which kind this is.
+-- timetable_events: 0 = Sunday ... 6 = Saturday. Three modes:
+--   weekly repeat  -- day_of_week set, event_date NULL
+--   one-off        -- event_date set, day_of_week derived from it
+--   rotating cycle -- day_of_week AND event_date both NULL; ordered by
+--                     sort_order and assigned one per calendar day,
+--                     continuing seamlessly across weeks (see
+--                     lib/workoutGenerate.js)
 CREATE TABLE workout_plans (
   id          SERIAL PRIMARY KEY,
   name        TEXT NOT NULL,
-  day_of_week SMALLINT NOT NULL CHECK (day_of_week BETWEEN 0 AND 6),
+  day_of_week SMALLINT CHECK (day_of_week BETWEEN 0 AND 6),
   event_date  DATE,
   active      BOOLEAN NOT NULL DEFAULT TRUE,
   sort_order  INT NOT NULL DEFAULT 0,

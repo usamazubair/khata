@@ -31,7 +31,7 @@ export default function Plans() {
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [name, setName] = useState("");
-  const [repeats, setRepeats] = useState(true);
+  const [mode, setMode] = useState<"weekly" | "once" | "cycle">("weekly");
   const [dayOfWeek, setDayOfWeek] = useState(1);
   const [eventDate, setEventDate] = useState(today);
   const [list, setList] = useState<PlanExercise[]>([]);
@@ -59,7 +59,7 @@ export default function Plans() {
   function reset() {
     setEditingId(null);
     setName("");
-    setRepeats(true);
+    setMode("weekly");
     setDayOfWeek(1);
     setEventDate(today());
     setList([]);
@@ -69,8 +69,8 @@ export default function Plans() {
   function startEdit(p: WorkoutPlan) {
     setEditingId(p.id);
     setName(p.name);
-    setRepeats(!p.event_date);
-    setDayOfWeek(p.day_of_week);
+    setMode(p.event_date ? "once" : p.day_of_week === null ? "cycle" : "weekly");
+    setDayOfWeek(p.day_of_week ?? 1);
     setEventDate(p.event_date ?? today());
     setList(p.exercises.map((e) => ({ exercise_id: e.exercise_id, name: e.name, category_name: e.category_name, category_color: e.category_color })));
     setError(null);
@@ -101,7 +101,11 @@ export default function Plans() {
     setSaving(true);
     setError(null);
     try {
-      const body = { name: name.trim(), day_of_week: dayOfWeek, event_date: repeats ? null : eventDate };
+      const body = {
+        name: name.trim(),
+        day_of_week: mode === "weekly" ? dayOfWeek : null,
+        event_date: mode === "once" ? eventDate : null,
+      };
       const planId = editingId ?? (await post<WorkoutPlan>("/api/workout-plans", body)).id;
       if (editingId) await put(`/api/workout-plans/${editingId}`, body);
       await put(`/api/workout-plans/${planId}/exercises`, { exercise_ids: list.map((l) => l.exercise_id) });
@@ -134,6 +138,25 @@ export default function Plans() {
     }
   }
 
+  // Plans with neither a weekday nor a date are the rotating cycle --
+  // ordered by sort_order, one plan handed out per calendar day.
+  const cyclePlans = plans.filter((p) => p.day_of_week === null && !p.event_date);
+
+  async function moveCycle(p: WorkoutPlan, dir: -1 | 1) {
+    const idx = cyclePlans.findIndex((x) => x.id === p.id);
+    const other = cyclePlans[idx + dir];
+    if (!other) return;
+    try {
+      await Promise.all([
+        put(`/api/workout-plans/${p.id}`, { sort_order: other.sort_order }),
+        put(`/api/workout-plans/${other.id}`, { sort_order: p.sort_order }),
+      ]);
+      await load();
+    } catch (err) {
+      alert((err as Error).message);
+    }
+  }
+
   const availableToAdd = exercises.filter((x) => !list.some((l) => l.exercise_id === x.id));
 
   return (
@@ -142,8 +165,9 @@ export default function Plans() {
       <Page>
         <PageHeader eyebrow="Workout" title="Plans" />
         <p className="mb-4 text-xs text-muted">
-          A plan is a weekly split — pick a weekday and its fixed exercise list. "Generate this week" on Sessions
-          turns each active plan into a real, dated session, ready to tick off.
+          A plan can repeat every week on a chosen day, happen once on a date, or join a rotating cycle that hands
+          out one plan per day, in order. Opening the workout overview turns this week's active plans into real,
+          dated sessions automatically, ready to tick off.
         </p>
 
         <CrudLayout
@@ -171,8 +195,28 @@ export default function Plans() {
                     <td className="table-cell whitespace-nowrap">
                       {p.event_date ? (
                         <Pill tone="neutral">{parseDate(p.event_date).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</Pill>
-                      ) : (
+                      ) : p.day_of_week !== null ? (
                         <Pill tone="accent">Every {dayName(p.day_of_week)}</Pill>
+                      ) : (
+                        <span className="flex items-center gap-1">
+                          <Pill tone="warn">Cycle #{cyclePlans.findIndex((x) => x.id === p.id) + 1}</Pill>
+                          <IconButton
+                            type="button"
+                            onClick={() => moveCycle(p, -1)}
+                            disabled={cyclePlans.findIndex((x) => x.id === p.id) === 0}
+                            aria-label="Move earlier in cycle"
+                          >
+                            <ArrowUp size={12} />
+                          </IconButton>
+                          <IconButton
+                            type="button"
+                            onClick={() => moveCycle(p, 1)}
+                            disabled={cyclePlans.findIndex((x) => x.id === p.id) === cyclePlans.length - 1}
+                            aria-label="Move later in cycle"
+                          >
+                            <ArrowDown size={12} />
+                          </IconButton>
+                        </span>
                       )}
                     </td>
                     <td className="table-cell font-semibold">{p.name}</td>
@@ -211,25 +255,28 @@ export default function Plans() {
 
               <Field label="When">
                 <div className="mb-2.5 flex gap-1 rounded-xl bg-page2 p-1">
-                  {[
-                    { on: true, label: "Every week" },
-                    { on: false, label: "Just once" },
-                  ].map((o) => (
+                  {(
+                    [
+                      { on: "weekly", label: "Every week" },
+                      { on: "once", label: "Just once" },
+                      { on: "cycle", label: "Rotating cycle" },
+                    ] as const
+                  ).map((o) => (
                     <button
-                      key={String(o.on)}
+                      key={o.on}
                       type="button"
-                      onClick={() => setRepeats(o.on)}
+                      onClick={() => setMode(o.on)}
                       className="relative flex-1 cursor-pointer rounded-lg px-3 py-1.5 text-xs"
                     >
-                      {repeats === o.on && (
+                      {mode === o.on && (
                         <motion.span layoutId="plan-repeat-mode" className="absolute inset-0 rounded-lg bg-page shadow-sm" transition={spring} />
                       )}
-                      <span className={cx("relative", repeats === o.on ? "font-semibold text-ink" : "text-muted")}>{o.label}</span>
+                      <span className={cx("relative", mode === o.on ? "font-semibold text-ink" : "text-muted")}>{o.label}</span>
                     </button>
                   ))}
                 </div>
 
-                {repeats ? (
+                {mode === "weekly" && (
                   <div className="grid grid-cols-7 gap-1">
                     {WEEKDAYS.map((d) => {
                       const on = d.dow === dayOfWeek;
@@ -256,8 +303,16 @@ export default function Plans() {
                       );
                     })}
                   </div>
-                ) : (
+                )}
+                {mode === "once" && (
                   <TextInput type="date" value={eventDate} onChange={(e) => setEventDate(e.target.value)} required />
+                )}
+                {mode === "cycle" && (
+                  <p className="rounded-lg border border-dashed border-rule px-3 py-2.5 text-xs text-muted">
+                    No fixed day — this plan takes its turn in the rotation (Plan 1 → Plan 2 → Plan 3 → back to Plan
+                    1…), one per calendar day. Reorder the rotation with the arrows in the table above once it's
+                    saved.
+                  </p>
                 )}
               </Field>
 

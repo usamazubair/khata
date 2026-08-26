@@ -130,13 +130,14 @@ export type Exercise = {
   media_type: "image" | "video" | null;
 };
 
-/** A split with its own fixed exercise list. day_of_week follows Postgres:
- *  0 Sunday … 6 Saturday. event_date null means it repeats every week on
- *  that day (one plan per weekday); a date means it happens once. */
+/** A split with its own fixed exercise list. Three modes: day_of_week set
+ *  (0 Sunday … 6 Saturday, Postgres convention) repeats every week on that
+ *  day; event_date set happens once; both null means it's part of a
+ *  rotating cycle, ordered by sort_order, assigned one per calendar day. */
 export type WorkoutPlan = {
   id: number;
   name: string;
-  day_of_week: number;
+  day_of_week: number | null;
   event_date: string | null;
   active: boolean;
   sort_order: number;
