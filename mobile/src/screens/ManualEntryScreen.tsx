@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 import { View, Text, TextInput, Pressable, ScrollView, StyleSheet, Switch, Alert, Platform } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import { Ionicons } from "@expo/vector-icons";
 import { useTheme, fonts } from "../theme";
 import { api } from "../api";
 import { Category, CategoryType } from "../types";
@@ -23,6 +24,10 @@ const TITLES: Record<CategoryType, string> = {
  *  no type picker here — just that type's own categories, flat. */
 export default function ManualEntryScreen({ route, navigation }: any) {
   const categoryType: CategoryType = route.params?.categoryType ?? "expense";
+  // When set, this screen skips the category picker entirely and locks to
+  // whichever category has this exact name (case-insensitive) -- e.g. "Add
+  // Expense — cash" always wants its own "Cash" category, never a choice.
+  const lockCategoryName: string | undefined = route.params?.lockCategoryName;
   const t = useTheme();
   const [categories, setCategories] = useState<Category[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -34,6 +39,11 @@ export default function ManualEntryScreen({ route, navigation }: any) {
   const [isPaid, setIsPaid] = useState(true);
   const [saving, setSaving] = useState(false);
 
+  const lockedCategory = lockCategoryName
+    ? categories.find((c) => c.name.trim().toLowerCase() === lockCategoryName.trim().toLowerCase())
+    : undefined;
+  const effectiveCategoryId = lockCategoryName ? (lockedCategory?.id ?? null) : categoryId;
+
   useFocusEffect(
     useCallback(() => {
       api
@@ -41,7 +51,7 @@ export default function ManualEntryScreen({ route, navigation }: any) {
         .then((cats: Category[]) => {
           setCategories(cats);
           setError(null);
-          setCategoryId((prev) => prev ?? cats[0]?.id ?? null);
+          if (!lockCategoryName) setCategoryId((prev) => prev ?? cats[0]?.id ?? null);
         })
         .catch((err) => setError(err.message));
       // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -57,13 +67,13 @@ export default function ManualEntryScreen({ route, navigation }: any) {
 
   async function save() {
     const numAmount = Number(amount);
-    if (!categoryId) return Alert.alert("Pick a category first.");
+    if (!effectiveCategoryId) return Alert.alert("Pick a category first.");
     if (!numAmount || numAmount <= 0) return Alert.alert("Enter an amount greater than 0.");
 
     setSaving(true);
     try {
       await api.transactions.create({
-        category_id: categoryId,
+        category_id: effectiveCategoryId,
         description,
         amount: numAmount,
         is_paid: isPaid,
@@ -82,7 +92,9 @@ export default function ManualEntryScreen({ route, navigation }: any) {
 
   return (
     <ScrollView style={{ backgroundColor: t.paper }} contentContainerStyle={styles.container}>
-      <Text style={[styles.title, { color: t.ink, fontFamily: fonts.display }]}>{TITLES[categoryType]}</Text>
+      <Text style={[styles.title, { color: t.ink, fontFamily: fonts.display }]}>
+        {lockCategoryName ? `${lockCategoryName} expense` : TITLES[categoryType]}
+      </Text>
 
       {error ? (
         <Text style={{ color: t.inkMuted, fontSize: 13 }}>{error}</Text>
@@ -102,7 +114,22 @@ export default function ManualEntryScreen({ route, navigation }: any) {
           </View>
 
           <Text style={[styles.label, { color: t.inkMuted }]}>Category</Text>
-          {categories.length === 0 ? (
+          {lockCategoryName ? (
+            lockedCategory ? (
+              <View style={[styles.chip, styles.lockedChip, { borderColor: t.accent, backgroundColor: t.page }]}>
+                <Dot color={t.categoryColor(lockedCategory.color)} size={7} />
+                <Text style={{ color: t.ink, fontSize: 12, fontWeight: "600" }}>{lockedCategory.name}</Text>
+                <Ionicons name="lock-closed" size={11} color={t.inkMuted} />
+              </View>
+            ) : (
+              <Text style={{ color: t.inkMuted, fontSize: 12, fontStyle: "italic" }}>
+                {categories.length === 0
+                  ? "No expense categories yet — "
+                  : `No "${lockCategoryName}" category yet — `}
+                add one named exactly "{lockCategoryName}" under Expense on the web dashboard.
+              </Text>
+            )
+          ) : categories.length === 0 ? (
             <Text style={{ color: t.inkMuted, fontSize: 12, fontStyle: "italic" }}>
               No categories of this type yet — add one on the web dashboard.
             </Text>
@@ -180,6 +207,7 @@ const styles = StyleSheet.create({
   amountInput: { fontSize: 44, fontWeight: "600", borderBottomWidth: 2, minWidth: 140, textAlign: "center", paddingBottom: 4 },
   label: { fontSize: 10, textTransform: "uppercase", letterSpacing: 0.6, marginTop: 16, marginBottom: 8 },
   chip: { flexDirection: "row", alignItems: "center", gap: 6, borderWidth: 1, borderRadius: 20, paddingVertical: 8, paddingHorizontal: 12, marginRight: 8 },
+  lockedChip: { alignSelf: "flex-start", marginBottom: 4 },
   field: { borderWidth: 1, borderRadius: 10, padding: 12 },
   switchRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 20 },
   button: { marginTop: 28, borderRadius: 10, padding: 14, alignItems: "center" },

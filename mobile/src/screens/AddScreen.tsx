@@ -62,6 +62,14 @@ export default function AddScreen({ navigation }: any) {
       />
       <OptionCard
         t={t}
+        tint={t.accent2}
+        icon="cash-outline"
+        title="Expense — cash"
+        description="Type in the amount — the Cash category is already picked for you."
+        onPress={() => navigation.navigate("ManualEntry", { categoryType: "expense", lockCategoryName: "Cash" })}
+      />
+      <OptionCard
+        t={t}
         tint={t.accent3}
         icon="wallet-outline"
         title="Saved"

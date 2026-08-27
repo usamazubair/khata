@@ -4,8 +4,12 @@ import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme, fonts } from "../theme";
 import { api, currentMonth, money } from "../api";
+import { isoDate } from "../lib/schedule";
 import { Transaction } from "../types";
 import Dot from "../components/Dot";
+
+const SCOPES = ["All", "Today"] as const;
+type Scope = (typeof SCOPES)[number];
 
 function dayLabel(iso: string) {
   const d = new Date(iso);
@@ -18,19 +22,22 @@ function dayLabel(iso: string) {
   return d.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" });
 }
 
-// Always scoped to the current month — Transactions is meant for "what's
-// happened lately," not a full-history browser.
+// "All" still means this month, not full history — Transactions is meant
+// for "what's happened lately," not a full-history browser. "Today"
+// narrows that down further, to just today.
 export default function TransactionsScreen() {
   const t = useTheme();
   const [items, setItems] = useState<Transaction[]>([]);
   const [query, setQuery] = useState("");
+  const [scope, setScope] = useState<Scope>("All");
   const [unpaidOnly, setUnpaidOnly] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const load = useCallback(async (q: string, unpaid: boolean) => {
-    const params: Record<string, string> = { month: currentMonth() };
+  const load = useCallback(async (q: string, unpaid: boolean, sc: Scope) => {
+    const params: Record<string, string> =
+      sc === "Today" ? { date_from: isoDate(new Date()), date_to: isoDate(new Date()) } : { month: currentMonth() };
     if (unpaid) params.paid = "false";
     if (q.trim()) params.q = q.trim();
     try {
@@ -44,14 +51,14 @@ export default function TransactionsScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      load(query, unpaidOnly);
+      load(query, unpaidOnly, scope);
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [load, unpaidOnly])
+    }, [load, unpaidOnly, scope])
   );
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => load(query, unpaidOnly), 300);
+    debounceRef.current = setTimeout(() => load(query, unpaidOnly, scope), 300);
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
@@ -60,7 +67,7 @@ export default function TransactionsScreen() {
 
   async function onRefresh() {
     setRefreshing(true);
-    await load(query, unpaidOnly);
+    await load(query, unpaidOnly, scope);
     setRefreshing(false);
   }
 
@@ -77,22 +84,36 @@ export default function TransactionsScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: t.paper }}>
       <View style={styles.header}>
-        <View style={[styles.searchRow, { borderColor: t.rule, backgroundColor: t.page }]}>
-          <Ionicons name="search" size={15} color={t.inkMuted} />
-          <TextInput
-            value={query}
-            onChangeText={setQuery}
-            placeholder="Search this month's transactions"
-            placeholderTextColor={t.inkMuted}
-            style={[styles.searchInput, { color: t.ink }]}
-          />
+        <View style={[styles.scopeRow, { backgroundColor: t.page2 }]}>
+          {SCOPES.map((sc) => (
+            <Pressable
+              key={sc}
+              onPress={() => setScope(sc)}
+              style={[styles.scopeSeg, scope === sc && { backgroundColor: t.page }]}
+            >
+              <Text style={{ color: t.ink, fontSize: 12.5, fontWeight: scope === sc ? "600" : "400" }}>{sc}</Text>
+            </Pressable>
+          ))}
         </View>
-        <Pressable
-          onPress={() => setUnpaidOnly((v) => !v)}
-          style={[styles.chip, { borderColor: unpaidOnly ? t.accent : t.rule, backgroundColor: unpaidOnly ? t.page : "transparent" }]}
-        >
-          <Text style={{ color: t.ink, fontSize: 12, fontWeight: unpaidOnly ? "600" : "400" }}>Unpaid only</Text>
-        </Pressable>
+
+        <View style={styles.searchAndFilterRow}>
+          <View style={[styles.searchRow, { borderColor: t.rule, backgroundColor: t.page }]}>
+            <Ionicons name="search" size={15} color={t.inkMuted} />
+            <TextInput
+              value={query}
+              onChangeText={setQuery}
+              placeholder={scope === "Today" ? "Search today's transactions" : "Search this month's transactions"}
+              placeholderTextColor={t.inkMuted}
+              style={[styles.searchInput, { color: t.ink }]}
+            />
+          </View>
+          <Pressable
+            onPress={() => setUnpaidOnly((v) => !v)}
+            style={[styles.chip, { borderColor: unpaidOnly ? t.accent : t.rule, backgroundColor: unpaidOnly ? t.page : "transparent" }]}
+          >
+            <Text style={{ color: t.ink, fontSize: 12, fontWeight: unpaidOnly ? "600" : "400" }}>Unpaid only</Text>
+          </Pressable>
+        </View>
       </View>
 
       {error && <Text style={{ color: t.inkMuted, fontSize: 13, paddingHorizontal: 18 }}>{error}</Text>}
@@ -122,7 +143,10 @@ export default function TransactionsScreen() {
 }
 
 const styles = StyleSheet.create({
-  header: { flexDirection: "row", gap: 8, paddingHorizontal: 18, paddingTop: 14, paddingBottom: 6 },
+  header: { paddingHorizontal: 18, paddingTop: 14, paddingBottom: 6, gap: 8 },
+  scopeRow: { flexDirection: "row", borderRadius: 10, padding: 3, gap: 3 },
+  scopeSeg: { flex: 1, alignItems: "center", paddingVertical: 7, borderRadius: 7 },
+  searchAndFilterRow: { flexDirection: "row", gap: 8 },
   searchRow: { flex: 1, flexDirection: "row", alignItems: "center", gap: 7, borderWidth: 1, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 8 },
   searchInput: { flex: 1, fontSize: 13, padding: 0 },
   chip: { borderWidth: 1, borderRadius: 20, paddingVertical: 8, paddingHorizontal: 12, justifyContent: "center" },

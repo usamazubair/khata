@@ -99,11 +99,25 @@ const RULES: Rule[] = [
     // "Dear MUHAMMAD, your  FBL Card has been charged for PKR 981 on
     //  24-08-2026 14:45:17 at Foodpanda Karachi Paki Karachi        PK.
     //  Available Limit: 587,749.85"
+    // Not every one of these includes the "Available Limit" trailer (e.g. a
+    // Dlocal/Netflix charge came through with just the merchant and a final
+    // period), so the merchant is just "whatever's before the next period"
+    // rather than requiring that specific suffix.
     bank: "Faysal Bank",
-    pattern: /FBL Card has been charged for PKR ([\d,]+(?:\.\d{1,2})?) on (\d{1,2}-\d{1,2}-\d{2,4}) \d{2}:\d{2}:\d{2} at (.+?)\.\s*Available Limit/i,
+    pattern: /FBL Card has been charged for PKR ([\d,]+(?:\.\d{1,2})?) on (\d{1,2}-\d{1,2}-\d{2,4}) \d{2}:\d{2}:\d{2} at (.+?)\./i,
     extract: (m) => {
       const occurredOn = fromNumericDate(m[2]);
       return occurredOn ? { amount: toAmount(m[1]), bank: "Faysal Bank", merchant: clean(m[3]), occurredOn } : null;
+    },
+  },
+  {
+    // "Dear Client, a Bill Payment of PKR 50,000.00 has been completed on
+    //  Account No. 0173xxx2801 on 27-08-26 using Online Banking."
+    bank: "Standard Chartered",
+    pattern: /a Bill Payment of PKR ([\d,]+(?:\.\d{1,2})?) has been completed on Account No\. \S+ on (\d{1,2}-\d{1,2}-\d{2,4}) using Online Banking/i,
+    extract: (m) => {
+      const occurredOn = fromNumericDate(m[2]);
+      return occurredOn ? { amount: toAmount(m[1]), bank: "Standard Chartered", merchant: "Bill Payment", occurredOn } : null;
     },
   },
   {
