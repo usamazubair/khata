@@ -15,6 +15,7 @@ import WorkoutHomeScreen from "./screens/WorkoutHomeScreen";
 import WorkoutSessionScreen from "./screens/WorkoutSessionScreen";
 import WorkoutExercisesScreen from "./screens/WorkoutExercisesScreen";
 import WorkoutExerciseScreen from "./screens/WorkoutExerciseScreen";
+import TimerScreen from "./screens/TimerScreen";
 import TimetableScreen from "./screens/TimetableScreen";
 import TimetableEntryScreen from "./screens/TimetableEntryScreen";
 import TodoListsScreen from "./screens/TodoListsScreen";
@@ -47,6 +48,7 @@ const TODO_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
 const WORKOUT_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   "This week": "flame-outline",
   Exercises: "list-outline",
+  Timer: "timer-outline",
   Settings: "settings-outline",
 };
 
@@ -86,6 +88,7 @@ function WorkoutTabs() {
     <Tab.Navigator screenOptions={tabScreenOptions(t, WORKOUT_ICONS)}>
       <Tab.Screen name="This week" component={WorkoutHomeScreen} />
       <Tab.Screen name="Exercises" component={WorkoutExercisesScreen} />
+      <Tab.Screen name="Timer" component={TimerScreen} />
       <Tab.Screen name="Settings" component={SettingsScreen} />
     </Tab.Navigator>
   );
