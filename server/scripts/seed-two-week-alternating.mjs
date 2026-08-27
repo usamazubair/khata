@@ -9,6 +9,12 @@
 // the same validation and slug generation the app itself uses, and is
 // idempotent throughout -- safe to re-run.
 //
+// A previous run may have deactivated (rather than deleted) an old plan
+// that already had generated sessions -- if so, this run also clears any
+// of its sessions dated today or later, so a plan you're replacing stops
+// showing in Overview/"this week" even though it couldn't be deleted
+// outright. Anything strictly in the past is left alone as real history.
+//
 // Usage:
 //   BASE=https://your-app.onrender.com EMAIL=you@example.com PASSWORD=yourpassword \
 //     node scripts/seed-two-week-alternating.mjs
@@ -59,16 +65,31 @@ async function main() {
   // 0. Remove the old program's plans, if present. A plan that already has
   // generated sessions can't be deleted (the FK would orphan them) -- fall
   // back to deactivating it instead, so at least it stops generating new
-  // ones; its past history and the plan row itself just stay around.
+  // ones. Deactivating alone leaves any session it already generated for
+  // this week (or later) sitting there, still showing in Overview/"this
+  // week" as if nothing changed -- that's not real history, just a
+  // leftover instance of a plan you're replacing, so it's cleared out too.
+  // Anything strictly in the past is left alone; that's real logged
+  // history and isn't touched.
+  const today = new Date().toISOString().slice(0, 10);
   const plansBeforeRemoval = await api("GET", "/api/workout-plans");
   for (const name of OLD_PLAN_NAMES) {
     for (const p of plansBeforeRemoval.filter((x) => x.name === name)) {
+      let deleted = true;
       try {
         await api("DELETE", `/api/workout-plans/${p.id}`);
         console.log("removed old plan:", name);
       } catch (e) {
+        deleted = false;
         await api("PUT", `/api/workout-plans/${p.id}`, { active: false });
         console.log("old plan has generated sessions, deactivated instead of deleted:", name);
+      }
+      if (!deleted) {
+        const upcoming = await api("GET", `/api/workouts/sessions?date_from=${today}`);
+        for (const s of upcoming.filter((x) => x.plan_id === p.id)) {
+          await api("DELETE", `/api/workouts/sessions/${s.id}`);
+          console.log("  cleared its stale session on", s.occurred_on, "(not yet past, so not real history)");
+        }
       }
     }
   }
