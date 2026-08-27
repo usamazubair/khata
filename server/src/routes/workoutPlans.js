@@ -44,28 +44,62 @@ function validateDow(dow) {
   return dow === null || (Number.isInteger(dow) && dow >= 0 && dow <= 6);
 }
 
+// A repeating plan's sort_order doubles as its "week number" in that
+// weekday's rotation (the simplified Add-a-plan form lets you type it
+// directly rather than reordering with arrows). Two *active* plans on the
+// same weekday claiming the same week number would be ambiguous -- the
+// generator wouldn't know which one is actually due -- so this is checked
+// before any insert/update that would create that state.
+async function conflictingWeekdaySlot(dow, sortOrder, excludeId) {
+  if (dow === null || sortOrder === null || sortOrder === undefined) return null;
+  const params = [dow, sortOrder];
+  let sql = `SELECT id, name FROM workout_plans
+             WHERE day_of_week = $1 AND event_date IS NULL AND sort_order = $2 AND active`;
+  if (excludeId) {
+    params.push(excludeId);
+    sql += ` AND id != $${params.length}`;
+  }
+  const { rows } = await pool.query(sql, params);
+  return rows[0] || null;
+}
+
 router.post("/", asyncHandler(async (req, res) => {
-  const { name, day_of_week = null, event_date = null, active = true } = req.body;
+  const { name, day_of_week = null, event_date = null, active = true, sort_order } = req.body;
   if (!name || !String(name).trim()) return res.status(400).json({ error: "A name is required." });
 
   const dow = event_date ? weekdayOf(event_date) : day_of_week;
   if (!validateDow(dow)) return res.status(400).json({ error: "That's not a valid weekday." });
 
+  const hasExplicitSort = sort_order !== undefined && sort_order !== null;
+  if (hasExplicitSort && dow !== null && !event_date && active) {
+    const conflict = await conflictingWeekdaySlot(dow, sort_order, null);
+    if (conflict) {
+      return res.status(409).json({
+        error: `Week ${sort_order} for that day is already used by the active plan "${conflict.name}". Deactivate it first, or pick a different week.`,
+      });
+    }
+  }
+
   // New plans append to the end of whatever rotation they belong to -- the
   // daily cycle (no weekday, no date), or a weekday's own rotation of
-  // repeating plans (Monday's 1st plan, 2nd, ...) -- rather than defaulting
-  // everything to 0. A one-off doesn't rotate, so its sort_order doesn't
-  // matter; $2 below is day_of_week, already bound for the INSERT itself.
-  const sortOrderExpr = event_date
+  // repeating plans -- rather than defaulting everything to 0, unless an
+  // explicit week number (sort_order) was given. A one-off doesn't rotate,
+  // so its sort_order doesn't matter; $2 below is day_of_week, already
+  // bound for the INSERT itself.
+  const sortOrderExpr = hasExplicitSort
+    ? "$5"
+    : event_date
     ? "0"
     : dow === null
     ? `(SELECT COALESCE(MAX(sort_order), -1) + 1 FROM workout_plans WHERE day_of_week IS NULL AND event_date IS NULL)`
     : `(SELECT COALESCE(MAX(sort_order), -1) + 1 FROM workout_plans WHERE day_of_week = $2 AND event_date IS NULL)`;
 
+  const params = [String(name).trim(), dow, event_date, active];
+  if (hasExplicitSort) params.push(sort_order);
   const { rows } = await pool.query(
     `INSERT INTO workout_plans (name, day_of_week, event_date, active, sort_order)
      VALUES ($1, $2, $3, $4, ${sortOrderExpr}) RETURNING id`,
-    [String(name).trim(), dow, event_date, active]
+    params
   );
   const { rows: full } = await pool.query(`${PLAN_SELECT} WHERE p.id = $1 GROUP BY p.id`, [rows[0].id]);
   res.status(201).json(full[0]);
@@ -82,6 +116,7 @@ router.put("/:id", asyncHandler(async (req, res) => {
   // and ?? can't tell "clear it" from "leave it alone".
   const touchingDate = "event_date" in req.body;
   const touchingDow = "day_of_week" in req.body;
+  const touchingSort = "sort_order" in req.body;
   const event_date = touchingDate ? req.body.event_date : before[0].event_date;
 
   let dow;
@@ -89,6 +124,17 @@ router.put("/:id", asyncHandler(async (req, res) => {
   else if (touchingDow) dow = req.body.day_of_week;
   else dow = before[0].day_of_week;
   if (!validateDow(dow)) return res.status(400).json({ error: "That's not a valid weekday." });
+
+  const resultingActive = active === undefined ? before[0].active : active;
+  const resultingSort = touchingSort ? sort_order : before[0].sort_order;
+  if (dow !== null && !event_date && resultingActive) {
+    const conflict = await conflictingWeekdaySlot(dow, resultingSort, req.params.id);
+    if (conflict) {
+      return res.status(409).json({
+        error: `Week ${resultingSort} for that day is already used by the active plan "${conflict.name}". Deactivate it first, or pick a different week.`,
+      });
+    }
+  }
 
   const { rows } = await pool.query(
     `UPDATE workout_plans SET
