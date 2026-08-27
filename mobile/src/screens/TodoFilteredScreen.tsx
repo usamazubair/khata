@@ -4,7 +4,9 @@ import { useFocusEffect } from "@react-navigation/native";
 import { useTheme, fonts } from "../theme";
 import { api } from "../api";
 import { TodoItem } from "../types";
+import { DueFilter, filterByDue } from "../lib/dueFilter";
 import TodoItemRow from "../components/TodoItemRow";
+import DueFilterBar from "../components/DueFilterBar";
 
 /** Every task across every list, filtered to just what's done or just
  *  what's left -- reached from the two icons below the lists grid. Toggling
@@ -17,6 +19,7 @@ export default function TodoFilteredScreen({ route, navigation }: any) {
   const [items, setItems] = useState<TodoItem[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [dueFilter, setDueFilter] = useState<DueFilter>("All");
 
   const load = useCallback(async () => {
     try {
@@ -71,6 +74,10 @@ export default function TodoFilteredScreen({ route, navigation }: any) {
     setRefreshing(false);
   }
 
+  // Only Remaining has a meaningful "when" to filter by -- a completed task's
+  // due date isn't really relevant to it any more.
+  const visible = status === "open" ? filterByDue(items, dueFilter) : items;
+
   return (
     <ScrollView
       style={{ backgroundColor: t.paper }}
@@ -78,23 +85,29 @@ export default function TodoFilteredScreen({ route, navigation }: any) {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={t.accent} />}
     >
       <Text style={{ color: t.inkMuted, fontSize: 12.5, marginBottom: 14, fontFamily: fonts.mono }}>
-        {items.length} task{items.length === 1 ? "" : "s"}
+        {visible.length} task{visible.length === 1 ? "" : "s"}
       </Text>
 
+      {status === "open" && <DueFilterBar value={dueFilter} onChange={setDueFilter} />}
+
       {error && <Text style={{ color: t.inkMuted, fontSize: 13 }}>{error}</Text>}
-      {!error && items.length === 0 && (
+      {!error && visible.length === 0 && (
         <Text style={{ color: t.inkMuted, fontSize: 13 }}>
-          {status === "done" ? "Nothing done yet." : "Nothing outstanding — you're all caught up. 🎉"}
+          {status === "done"
+            ? "Nothing done yet."
+            : items.length
+            ? `Nothing due ${dueFilter.toLowerCase()} — ${items.length} task${items.length === 1 ? "" : "s"} on "All".`
+            : "Nothing outstanding — you're all caught up. 🎉"}
         </Text>
       )}
 
-      {items.length > 0 && (
+      {visible.length > 0 && (
         <View style={[styles.card, { backgroundColor: t.page2 }]}>
-          {items.map((item, i) => (
+          {visible.map((item, i) => (
             <TodoItemRow
               key={item.id}
               item={item}
-              last={i === items.length - 1}
+              last={i === visible.length - 1}
               showList
               onToggle={() => toggle(item)}
               onDelete={() => remove(item)}

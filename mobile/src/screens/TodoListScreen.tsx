@@ -11,16 +11,15 @@ import { api } from "../api";
 import { TodoItem } from "../types";
 import { useKeyboardClearance } from "../lib/useKeyboardOffset";
 import { isoDate } from "../lib/schedule";
+import { DueFilter, filterByDue } from "../lib/dueFilter";
 import TodoItemRow from "../components/TodoItemRow";
+import DueFilterBar from "../components/DueFilterBar";
 
 const PRIORITIES = [
   { value: 0, label: "None", icon: "flag-outline" as const },
   { value: 1, label: "Medium", icon: "flag" as const },
   { value: 2, label: "High", icon: "flag" as const },
 ];
-
-const DUE_FILTERS = ["Today", "Tomorrow", "All"] as const;
-type DueFilter = (typeof DUE_FILTERS)[number];
 
 export default function TodoListScreen({ route, navigation }: any) {
   const t = useTheme();
@@ -118,17 +117,10 @@ export default function TodoListScreen({ route, navigation }: any) {
     setRefreshing(false);
   }
 
-  const todayIso = isoDate(new Date());
-  const tomorrowIso = isoDate(new Date(Date.now() + 86_400_000));
-
   // "Done" always shows every finished task on this list, unfiltered --
   // this filter is only about narrowing down what's still open.
   const allOpen = items.filter((i) => !i.done);
-  const open = allOpen.filter((i) => {
-    if (dueFilter === "Today") return i.due_date === todayIso;
-    if (dueFilter === "Tomorrow") return i.due_date === tomorrowIso;
-    return true;
-  });
+  const open = filterByDue(allOpen, dueFilter);
   const done = items.filter((i) => i.done);
 
   return (
@@ -145,17 +137,7 @@ export default function TodoListScreen({ route, navigation }: any) {
       >
         {error && <Text style={{ color: t.inkMuted, fontSize: 13, marginBottom: 12 }}>{error}</Text>}
 
-        <View style={[styles.filterRow, { backgroundColor: t.page2 }]}>
-          {DUE_FILTERS.map((f) => (
-            <Pressable
-              key={f}
-              onPress={() => setDueFilter(f)}
-              style={[styles.filterSeg, dueFilter === f && { backgroundColor: t.page }]}
-            >
-              <Text style={{ color: t.ink, fontSize: 12.5, fontWeight: dueFilter === f ? "600" : "400" }}>{f}</Text>
-            </Pressable>
-          ))}
-        </View>
+        <DueFilterBar value={dueFilter} onChange={setDueFilter} />
 
         <View style={[styles.card, { backgroundColor: t.page2 }]}>
           {open.length === 0 ? (
@@ -280,8 +262,6 @@ export default function TodoListScreen({ route, navigation }: any) {
 
 const styles = StyleSheet.create({
   container: { padding: 18, paddingBottom: 30 },
-  filterRow: { flexDirection: "row", borderRadius: 10, padding: 3, gap: 3, marginBottom: 12 },
-  filterSeg: { flex: 1, alignItems: "center", paddingVertical: 7, borderRadius: 7 },
   card: { borderRadius: 12, paddingHorizontal: 14 },
   doneToggle: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 16, marginBottom: 8 },
   composer: { padding: 12, borderTopWidth: 1 },
