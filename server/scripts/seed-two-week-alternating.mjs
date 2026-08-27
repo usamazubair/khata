@@ -1,18 +1,21 @@
-// One-off seed script for the 3-Week Hybrid Physique Program: creates any
-// missing exercise categories/exercises (matched by name, so re-running is
-// safe) and the 13 workout plans (a rotation of 3 per weekday for
-// Monday/Tuesday/Thursday/Friday, one fixed plan for Saturday), each with
-// its exercises linked in order. Talks to the real API, not the database
-// directly, so it goes through the same validation and slug generation
-// the app itself uses.
+// One-off seed script for the 2-Week Alternating Training Plan (Week 1
+// muscle growth / Week 2 athletic conditioning): removes the previous
+// 3-Week Hybrid Physique Program's plans (by name, if present) and creates
+// any missing exercise categories/exercises plus the 9 real workout plans
+// (a rotation of 2 per weekday for Monday/Tuesday/Wednesday/Thursday/
+// Friday -- Wednesday and Friday each include one "Rest Day" placeholder
+// for the week they're off in), each with its exercises linked in order.
+// Talks to the real API, not the database directly, so it goes through
+// the same validation and slug generation the app itself uses, and is
+// idempotent throughout -- safe to re-run.
 //
 // Usage:
 //   BASE=https://your-app.onrender.com EMAIL=you@example.com PASSWORD=yourpassword \
-//     node scripts/seed-hybrid-program.mjs
+//     node scripts/seed-two-week-alternating.mjs
 // (omit BASE/EMAIL/PASSWORD to run against a local dev server at
 // http://localhost:4000 with the .env's ADMIN_EMAIL/ADMIN_PASSWORD)
 import "dotenv/config";
-import { CATEGORIES, EXERCISES, PLANS } from "./hybrid-program-data.mjs";
+import { CATEGORIES, EXERCISES, PLANS } from "./two-week-alternating-data.mjs";
 
 const BASE = process.env.BASE || "http://localhost:4000";
 const EMAIL = process.env.EMAIL || process.env.ADMIN_EMAIL;
@@ -22,6 +25,17 @@ if (!EMAIL || !PASSWORD) {
   console.error("Set EMAIL and PASSWORD (or ADMIN_EMAIL/ADMIN_PASSWORD in .env) before running this.");
   process.exit(1);
 }
+
+// The previous (3-Week Hybrid Physique) program's plan names, so this
+// script can remove them even if seed-hybrid-program.mjs was never run in
+// this environment -- deleting a name that doesn't exist here is a no-op.
+const OLD_PLAN_NAMES = [
+  "Upper Strength (Week 1)", "Upper Hypertrophy (Week 2)", "Upper-Body Physique Circuit (Week 3)",
+  "Lower Strength + Core A (Week 1)", "Lower Hypertrophy + Core A (Week 2)", "Lower Stamina + Core A (Week 3)",
+  "Upper Strength + Calisthenics + Grip (Week 1)", "Calisthenics Upper + Grip (Week 2)", "Upper Density + Grip (Week 3)",
+  "Lower Strength + Core B (Week 1)", "Lower Hypertrophy + Core B (Week 2)", "Lower Conditioning + Intervals + Core B (Week 3)",
+  "Optional Grip & Posture",
+];
 
 async function main() {
   const loginRes = await fetch(`${BASE}/api/auth/login`, {
@@ -42,6 +56,23 @@ async function main() {
     return data;
   }
 
+  // 0. Remove the old program's plans, if present. A plan that already has
+  // generated sessions can't be deleted (the FK would orphan them) -- fall
+  // back to deactivating it instead, so at least it stops generating new
+  // ones; its past history and the plan row itself just stay around.
+  const plansBeforeRemoval = await api("GET", "/api/workout-plans");
+  for (const name of OLD_PLAN_NAMES) {
+    for (const p of plansBeforeRemoval.filter((x) => x.name === name)) {
+      try {
+        await api("DELETE", `/api/workout-plans/${p.id}`);
+        console.log("removed old plan:", name);
+      } catch (e) {
+        await api("PUT", `/api/workout-plans/${p.id}`, { active: false });
+        console.log("old plan has generated sessions, deactivated instead of deleted:", name);
+      }
+    }
+  }
+
   // 1. Categories (idempotent: reuse if a category with this name already exists).
   const existingCats = await api("GET", "/api/exercise-categories");
   const catByName = new Map(existingCats.map((c) => [c.name, c]));
@@ -57,10 +88,10 @@ async function main() {
   // "all"; omitting it entirely is what returns every exercise regardless.
   const existingExs = await api("GET", "/api/exercises");
   const exByName = new Map(existingExs.map((e) => [e.name, e]));
-  for (const [name, catName] of Object.entries(EXERCISES)) {
+  for (const [name, [catName, notes]] of Object.entries(EXERCISES)) {
     if (exByName.has(name)) continue;
     const cat = catByName.get(catName);
-    const created = await api("POST", "/api/exercises", { name, category_id: cat.id });
+    const created = await api("POST", "/api/exercises", { name, category_id: cat.id, notes: notes || "" });
     exByName.set(name, created);
     console.log("created exercise:", name);
   }
