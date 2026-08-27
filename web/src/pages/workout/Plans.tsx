@@ -157,6 +157,27 @@ export default function Plans() {
     }
   }
 
+  // All repeating plans sharing a weekday, in rotation order -- one entry
+  // means "always this plan" (no rotation to speak of); more than one means
+  // this weekday cycles through them, one per week.
+  const weekdayGroup = (dow: number) => plans.filter((p) => p.day_of_week === dow && !p.event_date);
+
+  async function moveWeekdayPlan(p: WorkoutPlan, dir: -1 | 1) {
+    const group = weekdayGroup(p.day_of_week!);
+    const idx = group.findIndex((x) => x.id === p.id);
+    const other = group[idx + dir];
+    if (!other) return;
+    try {
+      await Promise.all([
+        put(`/api/workout-plans/${p.id}`, { sort_order: other.sort_order }),
+        put(`/api/workout-plans/${other.id}`, { sort_order: p.sort_order }),
+      ]);
+      await load();
+    } catch (err) {
+      alert((err as Error).message);
+    }
+  }
+
   const availableToAdd = exercises.filter((x) => !list.some((l) => l.exercise_id === x.id));
 
   return (
@@ -166,8 +187,10 @@ export default function Plans() {
         <PageHeader eyebrow="Workout" title="Plans" />
         <p className="mb-4 text-xs text-muted">
           A plan can repeat every week on a chosen day, happen once on a date, or join a rotating cycle that hands
-          out one plan per day, in order. Opening the workout overview turns this week's active plans into real,
-          dated sessions automatically, ready to tick off.
+          out one plan per day, in order. Give a weekday more than one repeating plan to build a multi-week
+          rotation instead — Monday's 1st plan this week, its 2nd next week, and so on, cycling back around.
+          Opening the workout overview turns this week's active plans into real, dated sessions automatically,
+          ready to tick off.
         </p>
 
         <CrudLayout
@@ -175,7 +198,7 @@ export default function Plans() {
             <TableShell
               head={
                 <>
-                  <th className="table-head">Weekday</th>
+                  <th className="table-head">When</th>
                   <th className="table-head">Plan</th>
                   <th className="table-head">Exercises</th>
                   <th className="table-head">Status</th>
@@ -196,7 +219,38 @@ export default function Plans() {
                       {p.event_date ? (
                         <Pill tone="neutral">{parseDate(p.event_date).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</Pill>
                       ) : p.day_of_week !== null ? (
-                        <Pill tone="accent">Every {dayName(p.day_of_week)}</Pill>
+                        (() => {
+                          const group = weekdayGroup(p.day_of_week!);
+                          const idx = group.findIndex((x) => x.id === p.id);
+                          return (
+                            <span className="flex items-center gap-1">
+                              <Pill tone="accent">
+                                Every {dayName(p.day_of_week)}
+                                {group.length > 1 && ` · ${idx + 1} of ${group.length}`}
+                              </Pill>
+                              {group.length > 1 && (
+                                <>
+                                  <IconButton
+                                    type="button"
+                                    onClick={() => moveWeekdayPlan(p, -1)}
+                                    disabled={idx === 0}
+                                    aria-label="Move earlier in rotation"
+                                  >
+                                    <ArrowUp size={12} />
+                                  </IconButton>
+                                  <IconButton
+                                    type="button"
+                                    onClick={() => moveWeekdayPlan(p, 1)}
+                                    disabled={idx === group.length - 1}
+                                    aria-label="Move later in rotation"
+                                  >
+                                    <ArrowDown size={12} />
+                                  </IconButton>
+                                </>
+                              )}
+                            </span>
+                          );
+                        })()
                       ) : (
                         <span className="flex items-center gap-1">
                           <Pill tone="warn">Cycle #{cyclePlans.findIndex((x) => x.id === p.id) + 1}</Pill>
@@ -277,32 +331,38 @@ export default function Plans() {
                 </div>
 
                 {mode === "weekly" && (
-                  <div className="grid grid-cols-7 gap-1">
-                    {WEEKDAYS.map((d) => {
-                      const on = d.dow === dayOfWeek;
-                      // A weekday already spoken for by another *repeating* plan reads as
-                      // "in use" — one-off plans don't block a weekday from repeating use.
-                      const takenByOther = plans.some((p) => p.day_of_week === d.dow && p.id !== editingId && !p.event_date);
-                      return (
-                        <button
-                          key={d.dow}
-                          type="button"
-                          onClick={() => setDayOfWeek(d.dow)}
-                          title={takenByOther ? "Already has a plan" : undefined}
-                          className={cx(
-                            "relative rounded-lg border px-1 py-2 text-[11px] transition-colors",
-                            on ? "border-accent text-ink" : "border-rule text-muted hover:text-ink",
-                            takenByOther && !on && "opacity-50"
-                          )}
-                        >
-                          {on && (
-                            <motion.span layoutId="plan-day" className="absolute inset-0 rounded-lg bg-accent/12" transition={spring} />
-                          )}
-                          <span className="relative">{d.short}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
+                  <>
+                    <div className="grid grid-cols-7 gap-1">
+                      {WEEKDAYS.map((d) => {
+                        const on = d.dow === dayOfWeek;
+                        return (
+                          <button
+                            key={d.dow}
+                            type="button"
+                            onClick={() => setDayOfWeek(d.dow)}
+                            className={cx(
+                              "relative rounded-lg border px-1 py-2 text-[11px] transition-colors",
+                              on ? "border-accent text-ink" : "border-rule text-muted hover:text-ink"
+                            )}
+                          >
+                            {on && (
+                              <motion.span layoutId="plan-day" className="absolute inset-0 rounded-lg bg-accent/12" transition={spring} />
+                            )}
+                            <span className="relative">{d.short}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {(() => {
+                      const existing = weekdayGroup(dayOfWeek).filter((p) => p.id !== editingId);
+                      return existing.length > 0 ? (
+                        <p className="mt-2 text-xs text-muted">
+                          {dayName(dayOfWeek)} already has {existing.length} plan{existing.length === 1 ? "" : "s"} — saving
+                          this one adds it to that weekday's rotation instead of replacing anything.
+                        </p>
+                      ) : null;
+                    })()}
+                  </>
                 )}
                 {mode === "once" && (
                   <TextInput type="date" value={eventDate} onChange={(e) => setEventDate(e.target.value)} required />

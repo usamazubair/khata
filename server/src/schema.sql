@@ -168,12 +168,17 @@ CREATE TABLE exercises (
 
 -- day_of_week follows Postgres EXTRACT(DOW), same convention as
 -- timetable_events: 0 = Sunday ... 6 = Saturday. Three modes:
---   weekly repeat  -- day_of_week set, event_date NULL
---   one-off        -- event_date set, day_of_week derived from it
+--   weekly repeat  -- day_of_week set, event_date NULL. More than one plan
+--                     can share a weekday, ordered by sort_order, forming
+--                     a multi-week rotation (Monday = Week 1's plan, then
+--                     Week 2's, then Week 3's, then back around) -- a
+--                     single plan on a weekday is just a rotation of one,
+--                     so this is also how "always the same plan" works.
+--   one-off        -- event_date set, day_of_week derived from it.
 --   rotating cycle -- day_of_week AND event_date both NULL; ordered by
---                     sort_order and assigned one per calendar day,
---                     continuing seamlessly across weeks (see
---                     lib/workoutGenerate.js)
+--                     sort_order and assigned one per *calendar day*
+--                     (not weekday), continuing seamlessly across weeks.
+-- See lib/workoutGenerate.js for how each mode actually generates sessions.
 CREATE TABLE workout_plans (
   id          SERIAL PRIMARY KEY,
   name        TEXT NOT NULL,
@@ -183,12 +188,6 @@ CREATE TABLE workout_plans (
   sort_order  INT NOT NULL DEFAULT 0,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-
--- Only a repeating plan (event_date IS NULL) needs to be unique per
--- weekday -- two one-off plans can legitimately share a weekday if they
--- land on different dates.
-CREATE UNIQUE INDEX workout_plans_repeating_day_of_week_key
-  ON workout_plans (day_of_week) WHERE event_date IS NULL;
 
 CREATE TABLE workout_plan_exercises (
   id          SERIAL PRIMARY KEY,

@@ -51,24 +51,24 @@ router.post("/", asyncHandler(async (req, res) => {
   const dow = event_date ? weekdayOf(event_date) : day_of_week;
   if (!validateDow(dow)) return res.status(400).json({ error: "That's not a valid weekday." });
 
-  try {
-    // A cycle plan (no weekday, no date) is ordered by sort_order -- append
-    // it to the end of the rotation instead of defaulting everything to 0.
-    const sortOrderExpr =
-      dow === null && !event_date
-        ? `(SELECT COALESCE(MAX(sort_order), -1) + 1 FROM workout_plans WHERE day_of_week IS NULL AND event_date IS NULL)`
-        : `0`;
-    const { rows } = await pool.query(
-      `INSERT INTO workout_plans (name, day_of_week, event_date, active, sort_order)
-       VALUES ($1, $2, $3, $4, ${sortOrderExpr}) RETURNING id`,
-      [String(name).trim(), dow, event_date, active]
-    );
-    const { rows: full } = await pool.query(`${PLAN_SELECT} WHERE p.id = $1 GROUP BY p.id`, [rows[0].id]);
-    res.status(201).json(full[0]);
-  } catch (err) {
-    if (err.code === "23505") return res.status(409).json({ error: "That weekday already has a repeating plan." });
-    throw err;
-  }
+  // New plans append to the end of whatever rotation they belong to -- the
+  // daily cycle (no weekday, no date), or a weekday's own rotation of
+  // repeating plans (Monday's 1st plan, 2nd, ...) -- rather than defaulting
+  // everything to 0. A one-off doesn't rotate, so its sort_order doesn't
+  // matter; $2 below is day_of_week, already bound for the INSERT itself.
+  const sortOrderExpr = event_date
+    ? "0"
+    : dow === null
+    ? `(SELECT COALESCE(MAX(sort_order), -1) + 1 FROM workout_plans WHERE day_of_week IS NULL AND event_date IS NULL)`
+    : `(SELECT COALESCE(MAX(sort_order), -1) + 1 FROM workout_plans WHERE day_of_week = $2 AND event_date IS NULL)`;
+
+  const { rows } = await pool.query(
+    `INSERT INTO workout_plans (name, day_of_week, event_date, active, sort_order)
+     VALUES ($1, $2, $3, $4, ${sortOrderExpr}) RETURNING id`,
+    [String(name).trim(), dow, event_date, active]
+  );
+  const { rows: full } = await pool.query(`${PLAN_SELECT} WHERE p.id = $1 GROUP BY p.id`, [rows[0].id]);
+  res.status(201).json(full[0]);
 }));
 
 router.put("/:id", asyncHandler(async (req, res) => {
@@ -90,24 +90,19 @@ router.put("/:id", asyncHandler(async (req, res) => {
   else dow = before[0].day_of_week;
   if (!validateDow(dow)) return res.status(400).json({ error: "That's not a valid weekday." });
 
-  try {
-    const { rows } = await pool.query(
-      `UPDATE workout_plans SET
-         name = COALESCE($1, name),
-         day_of_week = $2,
-         event_date = $3,
-         active = COALESCE($4, active),
-         sort_order = COALESCE($5, sort_order)
-       WHERE id = $6 RETURNING id`,
-      [name, dow, event_date, active, sort_order, req.params.id]
-    );
-    if (!rows[0]) return res.status(404).json({ error: "Plan not found." });
-    const { rows: full } = await pool.query(`${PLAN_SELECT} WHERE p.id = $1 GROUP BY p.id`, [rows[0].id]);
-    res.json(full[0]);
-  } catch (err) {
-    if (err.code === "23505") return res.status(409).json({ error: "That weekday already has a repeating plan." });
-    throw err;
-  }
+  const { rows } = await pool.query(
+    `UPDATE workout_plans SET
+       name = COALESCE($1, name),
+       day_of_week = $2,
+       event_date = $3,
+       active = COALESCE($4, active),
+       sort_order = COALESCE($5, sort_order)
+     WHERE id = $6 RETURNING id`,
+    [name, dow, event_date, active, sort_order, req.params.id]
+  );
+  if (!rows[0]) return res.status(404).json({ error: "Plan not found." });
+  const { rows: full } = await pool.query(`${PLAN_SELECT} WHERE p.id = $1 GROUP BY p.id`, [rows[0].id]);
+  res.json(full[0]);
 }));
 
 router.delete("/:id", asyncHandler(async (req, res) => {
