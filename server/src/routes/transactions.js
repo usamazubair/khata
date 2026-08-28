@@ -12,7 +12,7 @@ const SELECT = `
 `;
 
 router.get("/", asyncHandler(async (req, res) => {
-  const { month, category_id, category_type, paid, limit, q, date_from, date_to } = req.query;
+  const { month, category_id, category_ids, category_type, paid, limit, q, date_from, date_to } = req.query;
   const clauses = [];
   const params = [];
 
@@ -23,6 +23,13 @@ router.get("/", asyncHandler(async (req, res) => {
   if (category_id) {
     params.push(category_id);
     clauses.push(`t.category_id = $${params.length}`);
+  }
+  if (category_ids) {
+    const ids = String(category_ids).split(",").map(Number).filter((n) => Number.isInteger(n));
+    if (ids.length) {
+      params.push(ids);
+      clauses.push(`t.category_id = ANY($${params.length}::int[])`);
+    }
   }
   if (category_type) {
     params.push(category_type);

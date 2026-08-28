@@ -5,8 +5,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme, fonts } from "../theme";
 import { api, currentMonth, money } from "../api";
 import { isoDate } from "../lib/schedule";
-import { Transaction } from "../types";
+import { Category, Transaction } from "../types";
 import Dot from "../components/Dot";
+import CategoryFilterModal from "../components/CategoryFilterModal";
 
 const SCOPES = ["All", "Today"] as const;
 type Scope = (typeof SCOPES)[number];
@@ -28,18 +29,26 @@ function dayLabel(iso: string) {
 export default function TransactionsScreen() {
   const t = useTheme();
   const [items, setItems] = useState<Transaction[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [query, setQuery] = useState("");
   const [scope, setScope] = useState<Scope>("All");
   const [unpaidOnly, setUnpaidOnly] = useState(false);
+  const [categoryIds, setCategoryIds] = useState<number[]>([]);
+  const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const load = useCallback(async (q: string, unpaid: boolean, sc: Scope) => {
+  useEffect(() => {
+    api.categories.list().then(setCategories).catch(() => {});
+  }, []);
+
+  const load = useCallback(async (q: string, unpaid: boolean, sc: Scope, catIds: number[]) => {
     const params: Record<string, string> =
       sc === "Today" ? { date_from: isoDate(new Date()), date_to: isoDate(new Date()) } : { month: currentMonth() };
     if (unpaid) params.paid = "false";
     if (q.trim()) params.q = q.trim();
+    if (catIds.length) params.category_ids = catIds.join(",");
     try {
       const rows = await api.transactions.list(params);
       setItems(rows);
@@ -51,14 +60,14 @@ export default function TransactionsScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      load(query, unpaidOnly, scope);
+      load(query, unpaidOnly, scope, categoryIds);
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [load, unpaidOnly, scope])
+    }, [load, unpaidOnly, scope, categoryIds])
   );
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => load(query, unpaidOnly, scope), 300);
+    debounceRef.current = setTimeout(() => load(query, unpaidOnly, scope, categoryIds), 300);
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
@@ -67,7 +76,7 @@ export default function TransactionsScreen() {
 
   async function onRefresh() {
     setRefreshing(true);
-    await load(query, unpaidOnly, scope);
+    await load(query, unpaidOnly, scope, categoryIds);
     setRefreshing(false);
   }
 
@@ -113,8 +122,29 @@ export default function TransactionsScreen() {
           >
             <Text style={{ color: t.ink, fontSize: 12, fontWeight: unpaidOnly ? "600" : "400" }}>Unpaid only</Text>
           </Pressable>
+          <Pressable
+            onPress={() => setShowCategoryPicker(true)}
+            style={[
+              styles.chip,
+              styles.categoryChip,
+              { borderColor: categoryIds.length ? t.accent : t.rule, backgroundColor: categoryIds.length ? t.page : "transparent" },
+            ]}
+          >
+            <Ionicons name="add" size={13} color={categoryIds.length ? t.accent : t.inkMuted} />
+            <Text style={{ color: categoryIds.length ? t.accent : t.ink, fontSize: 12, fontWeight: categoryIds.length ? "600" : "400" }}>
+              {categoryIds.length ? `${categoryIds.length}` : "Category"}
+            </Text>
+          </Pressable>
         </View>
       </View>
+
+      <CategoryFilterModal
+        visible={showCategoryPicker}
+        categories={categories}
+        selected={categoryIds}
+        onChange={setCategoryIds}
+        onClose={() => setShowCategoryPicker(false)}
+      />
 
       {error && <Text style={{ color: t.inkMuted, fontSize: 13, paddingHorizontal: 18 }}>{error}</Text>}
 
@@ -150,6 +180,7 @@ const styles = StyleSheet.create({
   searchRow: { flex: 1, flexDirection: "row", alignItems: "center", gap: 7, borderWidth: 1, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 8 },
   searchInput: { flex: 1, fontSize: 13, padding: 0 },
   chip: { borderWidth: 1, borderRadius: 20, paddingVertical: 8, paddingHorizontal: 12, justifyContent: "center" },
+  categoryChip: { flexDirection: "row", alignItems: "center", gap: 3 },
   sectionLabel: { fontSize: 10, textTransform: "uppercase", letterSpacing: 0.6, marginTop: 16, marginBottom: 6 },
   row: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 9, borderBottomWidth: StyleSheet.hairlineWidth },
 });

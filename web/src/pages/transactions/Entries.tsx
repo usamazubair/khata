@@ -1,25 +1,33 @@
 import { useCallback, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
+import { Plus } from "lucide-react";
 import { fullDate, get, money, seriesColor } from "@/lib/api";
 import { rowItem } from "@/lib/motion";
 import { Navbar, Page } from "@/components/Shell";
-import { Dot, EmptyState, PageHeader, Pill, SearchInput, TableShell, TextInput, Select } from "@/components/ui";
-import type { Transaction } from "@/lib/types";
+import { Dot, EmptyState, PageHeader, Pill, SearchInput, TableShell, TextInput, Modal, cx } from "@/components/ui";
+import type { Category, CategoryType, Transaction } from "@/lib/types";
 
-const TYPES = ["", "expense", "fixed", "saved", "budget"];
+const TYPE_ORDER: CategoryType[] = ["expense", "fixed", "saved", "budget"];
+const TYPE_LABELS: Record<CategoryType, string> = { expense: "Expense", fixed: "Fixed", saved: "Saved", budget: "Budget" };
 
 export default function Entries() {
   const [rows, setRows] = useState<Transaction[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [q, setQ] = useState("");
-  const [type, setType] = useState("");
+  const [categoryIds, setCategoryIds] = useState<number[]>([]);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
+
+  useEffect(() => {
+    get<Category[]>("/api/categories?active=true").then(setCategories).catch(() => {});
+  }, []);
 
   const load = useCallback(async () => {
     const params = new URLSearchParams();
     if (q.trim()) params.set("q", q.trim());
-    if (type) params.set("category_type", type);
+    if (categoryIds.length) params.set("category_ids", categoryIds.join(","));
     if (from) params.set("date_from", from);
     if (to) params.set("date_to", to);
     try {
@@ -28,13 +36,17 @@ export default function Entries() {
     } catch (e) {
       setError((e as Error).message);
     }
-  }, [q, type, from, to]);
+  }, [q, categoryIds, from, to]);
 
   // Debounced so typing doesn't fire a request per keystroke.
   useEffect(() => {
     const t = setTimeout(load, 250);
     return () => clearTimeout(t);
   }, [load]);
+
+  function toggleCategory(id: number) {
+    setCategoryIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  }
 
   return (
     <>
@@ -44,19 +56,23 @@ export default function Entries() {
 
         <div className="mb-4 flex flex-wrap items-center gap-2.5">
           <SearchInput value={q} onChange={setQ} placeholder="Search description or category…" />
-          <Select value={type} onChange={(e) => setType(e.target.value)} className="w-auto">
-            {TYPES.map((t) => (
-              <option key={t} value={t}>
-                {t ? t[0].toUpperCase() + t.slice(1) : "All types"}
-              </option>
-            ))}
-          </Select>
+          <button
+            type="button"
+            onClick={() => setPickerOpen(true)}
+            className={cx(
+              "flex cursor-pointer items-center gap-1.5 rounded-lg border px-3 py-2.5 text-[13px] transition-colors",
+              categoryIds.length ? "border-accent text-accent" : "border-rule text-muted hover:text-ink"
+            )}
+          >
+            <Plus size={14} />
+            {categoryIds.length ? `${categoryIds.length} categor${categoryIds.length === 1 ? "y" : "ies"}` : "Categories"}
+          </button>
           <TextInput type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="w-auto" title="From" />
           <TextInput type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-auto" title="To" />
           <button
             onClick={() => {
               setQ("");
-              setType("");
+              setCategoryIds([]);
               setFrom("");
               setTo("");
             }}
@@ -65,6 +81,44 @@ export default function Entries() {
             Clear
           </button>
         </div>
+
+        <Modal open={pickerOpen} onClose={() => setPickerOpen(false)} title="Filter by category">
+          <div className="mb-3 flex items-center justify-between text-xs text-muted">
+            <span>{categoryIds.length ? `${categoryIds.length} selected` : "All categories"}</span>
+            {categoryIds.length > 0 && (
+              <button type="button" onClick={() => setCategoryIds([])} className="cursor-pointer underline hover:text-ink">
+                Clear
+              </button>
+            )}
+          </div>
+          <div className="max-h-96 space-y-4 overflow-y-auto pr-1">
+            {TYPE_ORDER.map((type) => {
+              const inType = categories.filter((c) => c.type === type);
+              if (!inType.length) return null;
+              return (
+                <div key={type}>
+                  <p className="mb-1.5 text-[11px] font-semibold tracking-wide text-muted uppercase">{TYPE_LABELS[type]}</p>
+                  <div className="space-y-0.5">
+                    {inType.map((c) => (
+                      <label
+                        key={c.id}
+                        className="flex cursor-pointer items-center gap-2.5 rounded-md px-1.5 py-1.5 text-[13px] hover:bg-page2"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={categoryIds.includes(c.id)}
+                          onChange={() => toggleCategory(c.id)}
+                          className="cursor-pointer accent-accent"
+                        />
+                        <Dot color={seriesColor(c.color)} /> {c.name}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </Modal>
 
         {error && <EmptyState>{error}</EmptyState>}
 
