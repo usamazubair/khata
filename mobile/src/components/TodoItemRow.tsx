@@ -1,4 +1,4 @@
-import { View, Text, Pressable, StyleSheet } from "react-native";
+import { View, Text, Pressable, StyleSheet, Alert } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../theme";
 import { parseDate } from "../api";
@@ -26,12 +26,14 @@ export default function TodoItemRow({
   item,
   last,
   onToggle,
+  onEdit,
   onDelete,
   showList,
 }: {
   item: TodoItem;
   last: boolean;
   onToggle: () => void;
+  onEdit: () => void;
   onDelete: () => void;
   showList?: boolean;
 }) {
@@ -39,9 +41,17 @@ export default function TodoItemRow({
   const due = item.due_date ? dueLabel(item.due_date) : null;
   const dueColor = due?.late ? t.status.critical : due?.soon ? t.status.warning : t.inkMuted;
 
+  function onLongPress() {
+    Alert.alert(item.title, undefined, [
+      { text: "Edit", onPress: onEdit },
+      { text: "Delete", style: "destructive", onPress: onDelete },
+      { text: "Cancel", style: "cancel" },
+    ]);
+  }
+
   return (
     <Pressable
-      onLongPress={onDelete}
+      onLongPress={onLongPress}
       style={[styles.item, { borderColor: t.rule, borderBottomWidth: last ? 0 : StyleSheet.hairlineWidth }]}
     >
       <Pressable onPress={onToggle} hitSlop={10} style={styles.checkbox}>

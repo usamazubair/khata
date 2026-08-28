@@ -7,6 +7,7 @@ import { TodoItem } from "../types";
 import { DueFilter, filterByDue } from "../lib/dueFilter";
 import TodoItemRow from "../components/TodoItemRow";
 import DueFilterBar from "../components/DueFilterBar";
+import EditTaskModal from "../components/EditTaskModal";
 
 /** Every task across every list, filtered to just what's done or just
  *  what's left -- reached from the two icons below the lists grid. Toggling
@@ -20,6 +21,7 @@ export default function TodoFilteredScreen({ route, navigation }: any) {
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [dueFilter, setDueFilter] = useState<DueFilter>("All");
+  const [editingItem, setEditingItem] = useState<TodoItem | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -110,6 +112,7 @@ export default function TodoFilteredScreen({ route, navigation }: any) {
               last={i === visible.length - 1}
               showList
               onToggle={() => toggle(item)}
+              onEdit={() => setEditingItem(item)}
               onDelete={() => remove(item)}
             />
           ))}
@@ -117,8 +120,10 @@ export default function TodoFilteredScreen({ route, navigation }: any) {
       )}
 
       <Text style={{ color: t.inkMuted, fontSize: 11, textAlign: "center", marginTop: 18 }}>
-        Long-press a task to delete it · tap a list from Lists to add a new one
+        Long-press a task to edit or delete it · tap a list from Lists to add a new one
       </Text>
+
+      <EditTaskModal item={editingItem} onClose={() => setEditingItem(null)} onSaved={load} />
     </ScrollView>
   );
 }

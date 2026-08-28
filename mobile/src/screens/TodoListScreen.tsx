@@ -14,6 +14,7 @@ import { isoDate } from "../lib/schedule";
 import { DueFilter, filterByDue } from "../lib/dueFilter";
 import TodoItemRow from "../components/TodoItemRow";
 import DueFilterBar from "../components/DueFilterBar";
+import EditTaskModal from "../components/EditTaskModal";
 
 const PRIORITIES = [
   { value: 0, label: "None", icon: "flag-outline" as const },
@@ -33,6 +34,7 @@ export default function TodoListScreen({ route, navigation }: any) {
   const [busy, setBusy] = useState(false);
   const [dueFilter, setDueFilter] = useState<DueFilter>("All");
   const [showDone, setShowDone] = useState(false);
+  const [editingItem, setEditingItem] = useState<TodoItem | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const insets = useSafeAreaInsets();
@@ -155,6 +157,7 @@ export default function TodoListScreen({ route, navigation }: any) {
                 item={item}
                 last={i === open.length - 1}
                 onToggle={() => toggle(item)}
+                onEdit={() => setEditingItem(item)}
                 onDelete={() => remove(item)}
               />
             ))
@@ -175,6 +178,7 @@ export default function TodoListScreen({ route, navigation }: any) {
                     item={item}
                     last={i === done.length - 1}
                     onToggle={() => toggle(item)}
+                    onEdit={() => setEditingItem(item)}
                     onDelete={() => remove(item)}
                   />
                 ))}
@@ -184,9 +188,11 @@ export default function TodoListScreen({ route, navigation }: any) {
         )}
 
         <Text style={{ color: t.inkMuted, fontSize: 11, textAlign: "center", marginTop: 18 }}>
-          Long-press a task to delete it
+          Long-press a task to edit or delete it
         </Text>
       </ScrollView>
+
+      <EditTaskModal item={editingItem} onClose={() => setEditingItem(null)} onSaved={load} />
 
       <View style={[styles.composer, { backgroundColor: t.page2, borderTopColor: t.rule }]}>
         <View style={styles.optionsRow}>
